@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - geometry - terrain</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				color: #61443e;
+				font-family:Monospace;
+				font-size:13px;
+				text-align:center;
+
+				background-color: #bfd1e5;
+				margin: 0px;
+				overflow: hidden;
+			}
+
+			#info {
+				position: absolute;
+				top: 0px; width: 100%;
+				padding: 5px;
+			}
+
+			a {
+
+				color: #a06851;
+			}
+
+		</style>
+	</head>
+	<body>
+
+		<div id="container"><br /><br /><br /><br /><br />Generating world...</div>
+		<div id="info">
+            <a href="http://threejs.org" target="_blank">three.js</a> - webgl terrain demo<br />
+            (left click: forward, right click: backward)<br />
+
+            <input type="file" id="fileinput">
+        </div>
+
+		<script src="build/three.js"></script>
+
+        <script src="js/controls/FirstPersonControls.js"></script>
+		<script src="js/controls/OrbitControls.js"></script>
+
+		<script src="js/Detector.js"></script>
+		<script src="js/libs/stats.min.js"></script>
+
+		<script>
+
+			if ( ! Detector.webgl ) {
+
+				Detector.addGetWebGLMessage();
+				document.getElementById( 'container' ).innerHTML = "";
+
+			}
+
+			var container, stats;
+
+			var camera, controls, scene, renderer;
+
+			var triangles, mesh, texture;
+
+			var worldWidth = 1000, worldDepth = 1000,
+			worldHalfWidth = worldWidth / 2, worldHalfDepth = worldDepth / 2;
+
+			var clock = new THREE.Clock();
+
+			function init(heights) {
+
+                container = document.getElementById( 'container' );
+
+				camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 2000 );
+
+				scene = new THREE.Scene();//
+
+                //
+
+                scene.add( new THREE.AmbientLight( 0x444444 ) );
+                var light1 = new THREE.DirectionalLight( 0xffffff, 1.0 );
+                light1.position.set( 1, 0, -1 );
+                scene.add( light1 );
+                //var light2 = new THREE.DirectionalLight( 0xffffff, 1.5 );
+                //light2.position.set( 0, -1, 0 );
+                //scene.add( light2 );
+
+                //
+
+
+                renderer = new THREE.WebGLRenderer();
+                renderer.setClearColor( 0xbfd1e5 );
+                renderer.setPixelRatio( window.devicePixelRatio );
+                renderer.setSize( window.innerWidth, window.innerHeight );
+
+                //
+
+				controls = new THREE.FirstPersonControls( camera );
+				controls.movementSpeed = 250;
+				controls.lookSpeed = 0.2;
+
+                //controls = new THREE.TrackballControls( camera );
+                //controls.rotateSpeed = 4.0;
+                //controls.zoomSpeed = 1.2;
+                //controls.panSpeed = 1.8;
+                //controls.noZoom = false;
+                //controls.noPan = false;
+                //controls.staticMoving = true;
+                //controls.dynamicDampingFactor = 0.3;
+                //controls.keys = [ 65, 83, 68 ];
+                ////controls.addEventListener( 'change', render );
+//
+				////heights = generateHeight( worldWidth, worldDepth );
+//
+                camera.position.x = -worldDepth;
+                camera.position.y = heights[ worldHalfWidth * worldWidth + worldHalfDepth ] + 300;
+                camera.position.z = worldHalfWidth;
+
+                //controls = new THREE.OrbitControls( camera, renderer.domElement );
+                //controls.enableDamping = true;
+                //controls.dampingFactor = 0.25;
+                //controls.enableZoom = true;
+
+                //
+
+
+				var triangles = (worldWidth - 1) * (worldDepth - 1) * 2;
+                var geometry = new THREE.BufferGeometry();
+                var indices = new Uint32Array( triangles * 3 );
+                for ( var i = 0; i < indices.length; i ++ ) {
+                    indices[ i ] = i;
+                }
+                var positions = new Float32Array( triangles * 3 * 3 );
+                var normals = new Int16Array( triangles * 3 * 3 );
+                var colors = new Uint8Array( triangles * 3 * 3 );
+                var color = new THREE.Color();
+                //var n = 800, n2 = n/2;  // triangles spread in the cube
+                //var d = 12, d2 = d/2;   // individual triangle size
+                var pA = new THREE.Vector3();
+                var pB = new THREE.Vector3();
+                var pC = new THREE.Vector3();
+                var pD = new THREE.Vector3();
+                var cb = new THREE.Vector3();
+                var ab = new THREE.Vector3();
+                var db = new THREE.Vector3();
+
+                //heights = [0, 0, 0, 0, 1, 0, 0, 0, 0];
+                for (var w = 0, ipnc = 0; w < worldWidth - 1; w++) {
+                    for (var d = 0; d < worldDepth - 1; d++) {
+                        var ih = w * worldWidth + d;
+
+                        var ax = -(worldDepth - d);
+                        var ay = w;
+                        var az = heights[ ih ];
+                        var bx = -(worldDepth - d);
+                        var by = w + 1;
+                        var bz = heights[ ih + worldWidth ];
+                        var cx = -(worldDepth - (d + 1));
+                        var cy = w;
+                        var cz = heights[ ih + 1 ];
+                        var dx = -(worldDepth - (d + 1));
+                        var dy = w + 1;
+                        var dz = heights[ ih + worldWidth + 1 ];
+                        // First triangle
+                        positions[ ipnc ]     = ax;
+                        positions[ ipnc + 1 ] = az;
+                        positions[ ipnc + 2 ] = ay;
+                        positions[ ipnc + 3 ] = bx;
+                        positions[ ipnc + 4 ] = bz;
+                        positions[ ipnc + 5 ] = by;
+                        positions[ ipnc + 6 ] = cx;
+                        positions[ ipnc + 7 ] = cz;
+                        positions[ ipnc + 8 ] = cy;
+                        // Second triangle - mind the triangle orientation
+                        positions[ ipnc + 9 ]  = cx;
+                        positions[ ipnc + 10 ] = cz;
+                        positions[ ipnc + 11 ] = cy;
+                        positions[ ipnc + 12 ] = bx;
+                        positions[ ipnc + 13 ] = bz;
+                        positions[ ipnc + 14 ] = by;
+                        positions[ ipnc + 15 ] = dx;
+                        positions[ ipnc + 16 ] = dz;
+                        positions[ ipnc + 17 ] = dy;
+                        // flat face normals
+                        pA.set( ax, ay, az );
+                        pB.set( bx, by, bz );
+                        pC.set( cx, cy, cz );
+                        pD.set( dx, dy, dz );
+                        // First triangle
+                        cb.subVectors( pC, pB );
+                        ab.subVectors( pA, pB );
+                        cb.cross( ab );
+                        cb.normalize();
+                        var nx0 = cb.x;
+                        var ny0 = cb.y;
+                        var nz0 = cb.z;
+                        normals[ ipnc ]     = nx0 * 32767;
+                        normals[ ipnc + 1 ] = ny0 * 32767;
+                        normals[ ipnc + 2 ] = nz0 * 32767;
+                        normals[ ipnc + 3 ] = nx0 * 32767;
+                        normals[ ipnc + 4 ] = ny0 * 32767;
+                        normals[ ipnc + 5 ] = nz0 * 32767;
+                        normals[ ipnc + 6 ] = nx0 * 32767;
+                        normals[ ipnc + 7 ] = ny0 * 32767;
+                        normals[ ipnc + 8 ] = nz0 * 32767;
+                        // Second triangle
+                        db.subVectors( pD, pB );
+                        cb.subVectors( pC, pB );
+                        db.cross( cb );
+                        db.normalize();
+                        var nx1 = db.x;
+                        var ny1 = db.y;
+                        var nz1 = db.z;
+                        normals[ ipnc + 9 ]  = nx1 * 32767;
+                        normals[ ipnc + 10 ] = ny1 * 32767;
+                        normals[ ipnc + 11 ] = nz1 * 32767;
+                        normals[ ipnc + 12 ] = nx1 * 32767;
+                        normals[ ipnc + 13 ] = ny1 * 32767;
+                        normals[ ipnc + 14 ] = nz1 * 32767;
+                        normals[ ipnc + 15 ] = nx1 * 32767;
+                        normals[ ipnc + 16 ] = ny1 * 32767;
+                        normals[ ipnc + 17 ] = nz1 * 32767;
+
+                        // colors
+
+                        //var n0 = new THREE.Vector3( nx0, ny0, nz0 );
+                        //var n1 = new THREE.Vector3( nx1, ny1, nz1 );
+//
+                        //var sun = new THREE.Vector3( 1, 1, 1 );
+                        //sun.normalize();
+//
+                        //// First triangle
+                        //var shade0 = n0.dot( sun );
+                        //var ar = ( 96 + shade0 * 128 ) * ( 0.5 + az * 0.007 );
+                        //var ag = ( 32 + shade0 * 96 ) * ( 0.5 + az * 0.007 );
+                        //var ar = ( shade0 * 96 ) * ( 0.5 + az * 0.007 );
+                        //var br = ( 96 + shade0 * 128 ) * ( 0.5 + bz * 0.007 );
+                        //var bg = ( 32 + shade0 * 96 ) * ( 0.5 + bz * 0.007 );
+                        //var br = ( shade0 * 96 ) * ( 0.5 + bz * 0.007 );
+                        //var cr = ( 96 + shade0 * 128 ) * ( 0.5 + cz * 0.007 );
+                        //var cg = ( 32 + shade0 * 96 ) * ( 0.5 + cz * 0.007 );
+                        //var cr = ( shade0 * 96 ) * ( 0.5 + cz * 0.007 );
+                        //colors[ ipnc ]     = ar;
+                        //colors[ ipnc + 1 ] = ag;
+                        //colors[ ipnc + 2 ] = ar;
+                        //colors[ ipnc + 3 ] = br;
+                        //colors[ ipnc + 4 ] = bg;
+                        //colors[ ipnc + 5 ] = br;
+                        //colors[ ipnc + 6 ] = cr;
+                        //colors[ ipnc + 7 ] = cg;
+                        //colors[ ipnc + 8 ] = cr;
+//
+                        //// Second triangle
+                        //var shade1 = n1.dot( sun );
+                        //var cr = ( 96 + shade1 * 128 ) * ( 0.5 + cz * 0.007 );
+                        //var cg = ( 32 + shade1 * 96 ) * ( 0.5 + cz * 0.007 );
+                        //var cr = ( shade1 * 96 ) * ( 0.5 + cz * 0.007 );
+                        //var br = ( 96 + shade1 * 128 ) * ( 0.5 + bz * 0.007 );
+                        //var bg = ( 32 + shade1 * 96 ) * ( 0.5 + bz * 0.007 );
+                        //var br = ( shade1 * 96 ) * ( 0.5 + bz * 0.007 );
+                        //var dr = ( 96 + shade1 * 128 ) * ( 0.5 + dz * 0.007 );
+                        //var dg = ( 32 + shade1 * 96 ) * ( 0.5 + dz * 0.007 );
+                        //var dr = ( shade1 * 96 ) * ( 0.5 + dz * 0.007 );
+                        //colors[ ipnc + 9 ]  = cr;
+                        //colors[ ipnc + 10 ] = cg;
+                        //colors[ ipnc + 11 ] = cr;
+                        //colors[ ipnc + 12 ] = br;
+                        //colors[ ipnc + 13 ] = bg;
+                        //colors[ ipnc + 14 ] = br;
+                        //colors[ ipnc + 15 ] = dr;
+                        //colors[ ipnc + 16 ] = dg;
+                        //colors[ ipnc + 17 ] = dr;
+
+                        // (k*low.red + (1-k)*hi.red,
+                        // k*low.green + (1-k)*hi.green,
+                        // k*low.blue + (1-k)*hi.blue)
+                        // where k = (height-minHeight) / (maxHeight-minHeight).
+
+                        var hmin = 500, hmax = 1000;
+                        var rmin = 0, rmax = 255;
+                        var gmin = 0, gmax = 255;
+                        var bmin = 0, bmax = 255;
+
+                        var ak = (az - hmin) / (hmax - hmin);
+                        var bk = (bz - hmin) / (hmax - hmin);
+                        var ck = (cz - hmin) / (hmax - hmin);
+                        var dk = (dz - hmin) / (hmax - hmin);
+                        //color.setRGB( vx, vy, vz );
+                        // First triangle
+                        colors[ ipnc ]     = ((1 - ak) * rmin) + (ak * rmax);
+                        colors[ ipnc + 1 ] = ((1 - ak) * gmin) + (ak * gmax);
+                        colors[ ipnc + 2 ] = ((1 - ak) * bmin) + (ak * bmax);
+                        colors[ ipnc + 3 ] = ((1 - bk) * rmin) + (bk * rmax);
+                        colors[ ipnc + 4 ] = ((1 - bk) * gmin) + (bk * gmax);
+                        colors[ ipnc + 5 ] = ((1 - bk) * bmin) + (bk * bmax);
+                        colors[ ipnc + 6 ] = ((1 - ck) * rmin) + (ck * rmax);
+                        colors[ ipnc + 7 ] = ((1 - ck) * gmin) + (ck * gmax);
+                        colors[ ipnc + 8 ] = ((1 - ck) * bmin) + (ck * bmax);
+                        // Second triangle
+                        colors[ ipnc + 9 ]  = ((1 - ck) * rmin) + (ck * rmax);
+                        colors[ ipnc + 10 ] = ((1 - ck) * gmin) + (ck * gmax);
+                        colors[ ipnc + 11 ] = ((1 - ck) * bmin) + (ck * bmax);
+                        colors[ ipnc + 12 ] = ((1 - bk) * rmin) + (bk * rmax);
+                        colors[ ipnc + 13 ] = ((1 - bk) * gmin) + (bk * gmax);
+                        colors[ ipnc + 14 ] = ((1 - bk) * bmin) + (bk * bmax);
+                        colors[ ipnc + 15 ] = ((1 - dk) * rmin) + (dk * rmax);
+                        colors[ ipnc + 16 ] = ((1 - dk) * gmin) + (dk * gmax);
+                        colors[ ipnc + 17 ] = ((1 - dk) * bmin) + (dk * bmax);
+
+                        ipnc += 18;
+                    }
+                }
+
+
+                //for ( var i = 0; i < positions.length; i += 9 ) {
+                    // positions
+                    //var x = Math.random() * n - n2;
+                    //var y = Math.random() * n - n2;
+                    //var z = Math.random() * n - n2;
+                    //var ax = x + Math.random() * d - d2;
+                    //var ay = y + Math.random() * d - d2;
+                    //var az = z + Math.random() * d - d2;
+                    //var bx = x + Math.random() * d - d2;
+                    //var by = y + Math.random() * d - d2;
+                    //var bz = z + Math.random() * d - d2;
+                    //var cx = x + Math.random() * d - d2;
+                    //var cy = y + Math.random() * d - d2;
+                    //var cz = z + Math.random() * d - d2;
+                    //positions[ i ]     = ax;
+                    //positions[ i + 1 ] = ay;
+                    //positions[ i + 2 ] = az;
+                    //positions[ i + 3 ] = bx;
+                    //positions[ i + 4 ] = by;
+                    //positions[ i + 5 ] = bz;
+                    //positions[ i + 6 ] = cx;
+                    //positions[ i + 7 ] = cy;
+                    //positions[ i + 8 ] = cz;
+                    // flat face normals
+                    //pA.set( ax, ay, az );
+                    //pB.set( bx, by, bz );
+                    //pC.set( cx, cy, cz );
+                    //cb.subVectors( pC, pB );
+                    //ab.subVectors( pA, pB );
+                    //cb.cross( ab );
+                    //cb.normalize();
+                    //var nx = cb.x;
+                    //var ny = cb.y;
+                    //var nz = cb.z;
+                    //normals[ i ]     = nx * 32767;
+                    //normals[ i + 1 ] = ny * 32767;
+                    //normals[ i + 2 ] = nz * 32767;
+                    //normals[ i + 3 ] = nx * 32767;
+                    //normals[ i + 4 ] = ny * 32767;
+                    //normals[ i + 5 ] = nz * 32767;
+                    //normals[ i + 6 ] = nx * 32767;
+                    //normals[ i + 7 ] = ny * 32767;
+                    //normals[ i + 8 ] = nz * 32767;
+                //}
+                geometry.setIndex( new THREE.BufferAttribute( indices, 1 ) );
+                geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
+                geometry.addAttribute( 'normal', new THREE.BufferAttribute( normals, 3, true ) );
+                geometry.addAttribute( 'color', new THREE.BufferAttribute( colors, 3, true ) );
+                geometry.computeBoundingSphere();
+                var material = new THREE.MeshLambertMaterial( {
+                    //color: 0xaaaaaa, specular: 0xffffff, shininess: 250,
+                    side: THREE.DoubleSide, vertexColors: THREE.VertexColors, shading: THREE.SmoothShading
+                } );
+                mesh = new THREE.Mesh( geometry, material );
+                scene.add( mesh );
+
+/*
+
+                var geometry = new THREE.PlaneBufferGeometry( worldWidth, worldDepth, worldWidth - 1, worldDepth - 1 );
+				geometry.rotateX( - Math.PI / 2 );
+
+				var planeVertices = geometry.attributes.position.array;
+
+				for ( var i = 0, j = 2, l = planeVertices.length; j < l; i ++, j += 3 ) {
+
+					planeVertices[ j ] = heights[ i ];
+
+				}
+
+                // create a simple square shape. We duplicate the top left and bottom right
+                // vertices because each vertex needs to appear once per triangle.
+                var vertices = new Float32Array( [
+                    -1.0, -1.0,  1.0,
+                     1.0, -1.0,  1.0,
+                     1.0,  1.0,  1.0,
+
+                     1.0,  1.0,  1.0,
+                    -1.0,  1.0,  1.0,
+                    -1.0, -1.0,  1.0
+                ] );
+
+                geometry.dispose();
+
+                geometry = new THREE.BufferGeometry();
+
+                // itemSize = 3 because there are 3 values (components) per vertex
+                geometry.addAttribute( 'position', new THREE.BufferAttribute( vertices, 3 ) );
+                var material = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
+
+
+				// texture = new THREE.CanvasTexture( generateTexture( heights, worldWidth, worldDepth ) );
+				// texture.wrapS = THREE.ClampToEdgeWrapping;
+				// texture.wrapT = THREE.ClampToEdgeWrapping;
+
+				//mesh = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true })); // new THREE.MeshBasicMaterial( { map: texture } ) );
+
+                mesh = new THREE.Mesh( geometry, material );
+
+				scene.add( mesh );
+*/                
+
+
+				container.innerHTML = "";
+
+				container.appendChild( renderer.domElement );
+
+				stats = new Stats();
+				container.appendChild( stats.dom );
+
+				//
+
+				window.addEventListener( 'resize', onWindowResize, false );
+
+			}
+
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+				controls.handleResize();
+
+			}
+
+			function generateHeight( width, height ) {
+
+				var size = width * height, data = new Uint8Array( size ),
+				perlin = new ImprovedNoise(), quality = 1, z = Math.random() * 100;
+
+				for ( var j = 0; j < 4; j ++ ) {
+
+					for ( var i = 0; i < size; i ++ ) {
+
+						var x = i % width, y = ~~ ( i / width );
+						data[ i ] += Math.abs( perlin.noise( x / quality, y / quality, z ) * quality * 1.75 );
+
+					}
+
+					quality *= 5;
+
+				}
+
+                console.log(data);
+
+				return data;
+
+			}
+
+			function generateTexture( data, width, height ) {
+
+				var canvas, canvasScaled, context, image, imageData,
+				level, diff, vector3, sun, shade;
+
+				vector3 = new THREE.Vector3( 0, 0, 0 );
+
+				sun = new THREE.Vector3( 1, 1, 1 );
+				sun.normalize();
+
+				canvas = document.createElement( 'canvas' );
+				canvas.width = width;
+				canvas.height = height;
+
+				context = canvas.getContext( '2d' );
+				context.fillStyle = '#000';
+				context.fillRect( 0, 0, width, height );
+
+				image = context.getImageData( 0, 0, canvas.width, canvas.height );
+				imageData = image.data;
+
+				for ( var i = 0, j = 0, l = imageData.length; i < l; i += 4, j ++ ) {
+
+					vector3.x = data[ j - 2 ] - data[ j + 2 ];
+					vector3.y = 2;
+					vector3.z = data[ j - width * 2 ] - data[ j + width * 2 ];
+					vector3.normalize();
+
+					shade = vector3.dot( sun );
+
+					imageData[ i ] = ( 96 + shade * 128 ) * ( 0.5 + data[ j ] * 0.007 );
+					imageData[ i + 1 ] = ( 32 + shade * 96 ) * ( 0.5 + data[ j ] * 0.007 );
+					imageData[ i + 2 ] = ( shade * 96 ) * ( 0.5 + data[ j ] * 0.007 );
+				}
+
+				context.putImageData( image, 0, 0 );
+
+				// Scaled 4x
+
+				canvasScaled = document.createElement( 'canvas' );
+				canvasScaled.width = width * 4;
+				canvasScaled.height = height * 4;
+
+				context = canvasScaled.getContext( '2d' );
+				context.scale( 4, 4 );
+				context.drawImage( canvas, 0, 0 );
+
+				image = context.getImageData( 0, 0, canvasScaled.width, canvasScaled.height );
+				imageData = image.data;
+
+				for ( var i = 0, l = imageData.length; i < l; i += 4 ) {
+
+					var v = ~~ ( Math.random() * 5 );
+
+					imageData[ i ] += v;
+					imageData[ i + 1 ] += v;
+					imageData[ i + 2 ] += v;
+
+				}
+
+				context.putImageData( image, 0, 0 );
+
+				return canvasScaled;
+			}
+
+            function readSingleFile(evt) {
+                //Retrieve the first (and only!) File from the FileList object
+                var f = evt.target.files[0]; 
+
+                if (f) {
+                    var r = new FileReader();
+                    //r.onload = function (e) { 
+                    //    var contents = e.target.result;
+                    //    contents = contents.split('\n');
+                    //    data = new Float32Array(contents.length);
+                    //    for (var i = 0; i < contents.length; i++) {
+                    //        data[i] = parseFloat(contents[i]);
+                    //    }
+                    //    init(data);
+                    //    animate();
+                    //};
+                    //r.readAsText(f);
+
+                    // ByteArray
+                    r.onload = function (e) { 
+                        var contents = e.target.result;
+                        //data = new Uint16Array(contents);
+                        //console.log(data);
+                        dataf = new Float32Array(contents);
+                        //for (var i = 0; i < data.length; i++) {
+                        //    dataf[i] = ((data[i] - 0.5) / 65536.0) * 2864.0;
+                        //}
+                        //console.log(dataf);
+                        init(dataf);
+                        animate();
+                    };
+                    r.readAsArrayBuffer(f);
+                } else { 
+                    alert("Failed to load file");
+                }
+            }
+
+            document.getElementById('fileinput').addEventListener('change', readSingleFile, false);
+
+			//
+
+			function animate() {
+
+				requestAnimationFrame( animate );
+
+				render();
+				stats.update();
+
+			}
+
+			function render() {
+
+				controls.update( clock.getDelta() );
+				renderer.render( scene, camera );
+
+                //console.log(camera.position.x, camera.position.y, camera.position.z);
+                //console.log(camera.rotation.x, camera.rotation.y, camera.rotation.z);
+
+			}
+
+		</script>
+	</body>
+</html>

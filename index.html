@@ -31,12 +31,10 @@
 	</head>
 	<body>
 
-		<div id="container"><br /><br /><br /><br /><br />Generating world...</div>
+		<div id="container"><br /><br /><br /><br /><br />Loading world...</div>
 		<div id="info">
-            <a href="http://threejs.org" target="_blank">three.js</a> - webgl terrain demo<br />
-            (left click: forward, right click: backward)<br />
-
-            <input type="file" id="fileinput">
+            SLO3D - LIDAR visualisation demo based on <a href="http://threejs.org" target="_blank">three.js</a> - webgl terrain demo<br />
+            (left click or W: forward, right click or S: backward, A: left, D: right)<br />
         </div>
 
 		<script src="build/three.js"></script>
@@ -62,7 +60,7 @@
 
 			var triangles, mesh, texture;
 
-			var worldWidth = 1000, worldDepth = 1000,
+			var worldWidth = 1001, worldDepth = 1001,
 			worldHalfWidth = worldWidth / 2, worldHalfDepth = worldDepth / 2;
 
 			var clock = new THREE.Clock();
@@ -156,6 +154,8 @@
                         var dx = -(worldDepth - (d + 1));
                         var dy = w + 1;
                         var dz = heights[ ih + worldWidth + 1 ];
+
+                        //console.log(az, bz, cz, dz);
                         // First triangle
                         positions[ ipnc ]     = ax;
                         positions[ ipnc + 1 ] = az;
@@ -291,33 +291,22 @@
 
 			}
 
-            function readSingleFile(evt) {
-                //Retrieve the first (and only!) File from the FileList object
-                var f = evt.target.files[0]; 
-
-                if (f) {
-                    var r = new FileReader();
-
-                    // ByteArray
-                    r.onload = function (e) { 
-                        var contents = e.target.result;
-                        //data = new Uint16Array(contents);
-                        //console.log(data);
-                        dataf = new Float32Array(contents);
-                        //for (var i = 0; i < data.length; i++) {
-                        //    dataf[i] = ((data[i] - 0.5) / 65536.0) * 2864.0;
-                        //}
-                        //console.log(dataf);
-                        init(dataf);
-                        animate();
-                    };
-                    r.readAsArrayBuffer(f);
-                } else { 
-                    alert("Failed to load file");
+            // Retrieve data
+            function onload () {
+                var contents = this.responseText;
+                contents = contents.split('\n');
+                data = new Float32Array(contents.length);
+                for (var i = 0; i < contents.length; i++) {
+                    data[i] = parseFloat(contents[i]);
                 }
+                init(data);
+                animate();
             }
 
-            document.getElementById('fileinput').addEventListener('change', readSingleFile, false);
+            var request = new XMLHttpRequest();
+            request.addEventListener("load", onload);
+            request.open("GET", "heights.asc");
+            request.send();
 
 			//
 

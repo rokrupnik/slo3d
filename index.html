@@ -34,12 +34,12 @@
 		<div id="container"><br /><br /><br /><br /><br />Loading world...</div>
 		<div id="info">
             SLO3D - LIDAR visualisation demo based on <a href="http://threejs.org" target="_blank">three.js</a> - webgl terrain demo<br />
-            (left click or W: forward, right click or S: backward, A: left, D: right)<br />
+            (left click: pan, right click: rotate, mouse wheel: zoom)<br />
         </div>
 
 		<script src="build/three.min.js"></script>
 
-        <script src="js/controls/FirstPersonControls.js"></script>
+        <script src="js/controls/OrbitControls.js"></script>
 
 		<script src="js/Detector.js"></script>
 		<script src="js/libs/stats.min.js"></script>
@@ -88,31 +88,16 @@
 
                 //
 
-                camera.position.x = -worldDepth;
-                camera.position.y = heights[ worldHalfWidth * worldWidth + worldHalfDepth ] + 300;
-                camera.position.z = worldHalfWidth;
+                camera.position.x = -worldDepth*1.2;
+                camera.position.y = heights[ worldHalfWidth * worldWidth + worldHalfDepth ] + 600;
+                //camera.position.z = worldHalfWidth;
 
                 //
 
-				controls = new THREE.FirstPersonControls( camera );
-				controls.movementSpeed = 250;
-				controls.lookSpeed = 0.2;
-
-                //controls = new THREE.TrackballControls( camera );
-                //controls.rotateSpeed = 4.0;
-                //controls.zoomSpeed = 1.2;
-                //controls.panSpeed = 1.8;
-                //controls.noZoom = false;
-                //controls.noPan = false;
-                //controls.staticMoving = true;
-                //controls.dynamicDampingFactor = 0.3;
-                //controls.keys = [ 65, 83, 68 ];
-                ////controls.addEventListener( 'change', render );
-
-                //controls = new THREE.OrbitControls( camera, renderer.domElement );
-                //controls.enableDamping = true;
-                //controls.dampingFactor = 0.25;
-                //controls.enableZoom = true;
+                controls = new THREE.OrbitControls( camera, renderer.domElement );
+                controls.enableDamping = true;
+                controls.dampingFactor = 1.0;
+                controls.enableZoom = true;
 
                 //
 
@@ -314,6 +299,8 @@
                     //imgData[i+4] -> alpha value
 
                     buffer /= 100;
+
+                    // offset for better camera handling
 
                     heights[iHeights] = buffer;
                     iHeights += 1;

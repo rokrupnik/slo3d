@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>SLO3D demo - visualisation of LIDAR data</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				color: #61443e;
+				font-family:Monospace;
+				font-size:13px;
+				text-align:center;
+
+				background-color: #bfd1e5;
+				margin: 0px;
+				overflow: hidden;
+			}
+
+			#info {
+				position: absolute;
+				top: 0px; width: 100%;
+				padding: 5px;
+			}
+
+			a {
+
+				color: #a06851;
+			}
+
+		</style>
+	</head>
+	<body>
+
+		<div id="container"><br /><br /><br /><br /><br />Loading world...</div>
+		<div id="info">
+            SLO3D - LIDAR visualisation demo based on <a href="http://threejs.org" target="_blank">three.js</a> - webgl terrain demo<br />
+            (left click: pan, right click: rotate, mouse wheel: zoom)<br />
+        </div>
+
+		<script src="build/three.min.js"></script>
+
+        <script src="js/controls/OrbitControls.js"></script>
+
+		<script src="js/Detector.js"></script>
+		<script src="js/libs/stats.min.js"></script>
+
+		<script>
+
+			if ( ! Detector.webgl ) {
+
+				Detector.addGetWebGLMessage();
+				document.getElementById( 'container' ).innerHTML = "";
+
+			}
+
+			var container, stats;
+
+			var camera, controls, scene, renderer;
+
+			var triangles, mesh, texture;
+
+			var worldWidth = 1000, worldDepth = 1000,
+			worldHalfWidth = worldWidth / 2, worldHalfDepth = worldDepth / 2;
+
+			var clock = new THREE.Clock();
+
+			function init(heights) {
+
+                container = document.getElementById( 'container' );
+
+				camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 2000 );
+
+				scene = new THREE.Scene();//
+
+                //
+
+                scene.add( new THREE.AmbientLight( 0x444444 ) );
+                var light1 = new THREE.DirectionalLight( 0xffffff, 1.0 );
+                light1.position.set( 1, 0, -1 );
+                scene.add( light1 );
+
+                //
+
+                renderer = new THREE.WebGLRenderer();
+                renderer.setClearColor( 0xbfd1e5 );
+                renderer.setPixelRatio( window.devicePixelRatio );
+                renderer.setSize( window.innerWidth, window.innerHeight );
+
+                //
+
+                camera.position.x = 0;
+                camera.position.y = heights[ worldHalfWidth * worldWidth + worldHalfDepth ] + 800;
+                camera.position.z = worldWidth;
+
+                //
+
+                controls = new THREE.OrbitControls( camera, renderer.domElement );
+                controls.enableDamping = true;
+                controls.dampingFactor = 1.0;
+                controls.enableZoom = true;
+
+                controls.target = new THREE.Vector3( worldDepth * 1.5, 0, worldWidth );
+
+                //
+
+				var triangles = (worldWidth - 1) * (worldDepth - 1) * 2;
+                var geometry = new THREE.BufferGeometry();
+                var indices = new Uint32Array( triangles * 3 );
+                for ( var i = 0; i < indices.length; i ++ ) {
+                    indices[ i ] = i;
+                }
+                var positions = new Float32Array( triangles * 3 * 3 );
+                var normals = new Int16Array( triangles * 3 * 3 );
+                var colors = new Uint8Array( triangles * 3 * 3 );
+                var color = new THREE.Color();
+                //var n = 800, n2 = n/2;  // triangles spread in the cube
+                //var d = 12, d2 = d/2;   // individual triangle size
+                var pA = new THREE.Vector3();
+                var pB = new THREE.Vector3();
+                var pC = new THREE.Vector3();
+                var pD = new THREE.Vector3();
+                var cb = new THREE.Vector3();
+                var ab = new THREE.Vector3();
+                var db = new THREE.Vector3();
+
+                //heights = [0, 0, 0, 0, 1, 0, 0, 0, 0];
+                for (var w = 0, ipnc = 0; w < worldWidth - 1; w++) {
+                    for (var d = 0; d < worldDepth - 1; d++) {
+                        var ih = w * worldWidth + d;
+
+                        var ax = worldWidth - w;
+                        var ay = d;
+                        var az = heights[ ih ];
+                        var bx = worldWidth - (w + 1);
+                        var by = d;
+                        var bz = heights[ ih + worldWidth ];
+                        var cx = worldWidth - w;
+                        var cy = d + 1;
+                        var cz = heights[ ih + 1 ];
+                        var dx = worldWidth - (w + 1);
+                        var dy = d + 1;
+                        var dz = heights[ ih + worldWidth + 1 ];
+
+                        ax *= 2;
+                        ay *= 2;
+                        bx *= 2;
+                        by *= 2;
+                        cx *= 2;
+                        cy *= 2;
+                        dx *= 2;
+                        dy *= 2;
+
+                        // First triangle
+                        positions[ ipnc ]     = ax;
+                        positions[ ipnc + 1 ] = az;
+                        positions[ ipnc + 2 ] = ay;
+                        positions[ ipnc + 3 ] = bx;
+                        positions[ ipnc + 4 ] = bz;
+                        positions[ ipnc + 5 ] = by;
+                        positions[ ipnc + 6 ] = cx;
+                        positions[ ipnc + 7 ] = cz;
+                        positions[ ipnc + 8 ] = cy;
+                        // Second triangle - mind the triangle orientation
+                        positions[ ipnc + 9 ]  = cx;
+                        positions[ ipnc + 10 ] = cz;
+                        positions[ ipnc + 11 ] = cy;
+                        positions[ ipnc + 12 ] = bx;
+                        positions[ ipnc + 13 ] = bz;
+                        positions[ ipnc + 14 ] = by;
+                        positions[ ipnc + 15 ] = dx;
+                        positions[ ipnc + 16 ] = dz;
+                        positions[ ipnc + 17 ] = dy;
+
+                        // flat face normals
+                        pA.set( ax, ay, az );
+                        pB.set( bx, by, bz );
+                        pC.set( cx, cy, cz );
+                        pD.set( dx, dy, dz );
+                        // First triangle
+                        cb.subVectors( pC, pB );
+                        ab.subVectors( pA, pB );
+                        cb.cross( ab );
+                        cb.normalize();
+                        var nx0 = cb.x;
+                        var ny0 = cb.y;
+                        var nz0 = cb.z;
+                        normals[ ipnc ]     = nx0 * 32767;
+                        normals[ ipnc + 1 ] = ny0 * 32767;
+                        normals[ ipnc + 2 ] = nz0 * 32767;
+                        normals[ ipnc + 3 ] = nx0 * 32767;
+                        normals[ ipnc + 4 ] = ny0 * 32767;
+                        normals[ ipnc + 5 ] = nz0 * 32767;
+                        normals[ ipnc + 6 ] = nx0 * 32767;
+                        normals[ ipnc + 7 ] = ny0 * 32767;
+                        normals[ ipnc + 8 ] = nz0 * 32767;
+                        // Second triangle
+                        db.subVectors( pD, pB );
+                        cb.subVectors( pC, pB );
+                        db.cross( cb );
+                        db.normalize();
+                        var nx1 = db.x;
+                        var ny1 = db.y;
+                        var nz1 = db.z;
+                        normals[ ipnc + 9 ]  = nx1 * 32767;
+                        normals[ ipnc + 10 ] = ny1 * 32767;
+                        normals[ ipnc + 11 ] = nz1 * 32767;
+                        normals[ ipnc + 12 ] = nx1 * 32767;
+                        normals[ ipnc + 13 ] = ny1 * 32767;
+                        normals[ ipnc + 14 ] = nz1 * 32767;
+                        normals[ ipnc + 15 ] = nx1 * 32767;
+                        normals[ ipnc + 16 ] = ny1 * 32767;
+                        normals[ ipnc + 17 ] = nz1 * 32767;
+
+                        // colors
+                        // (k*low.red + (1-k)*hi.red,
+                        // k*low.green + (1-k)*hi.green,
+                        // k*low.blue + (1-k)*hi.blue)
+                        // where k = (height-minHeight) / (maxHeight-minHeight).
+                        var hmin = 500, hmax = 1000;
+                        var rmin = 0, rmax = 255;
+                        var gmin = 0, gmax = 255;
+                        var bmin = 0, bmax = 255;
+                        var ak = (az - hmin) / (hmax - hmin);
+                        var bk = (bz - hmin) / (hmax - hmin);
+                        var ck = (cz - hmin) / (hmax - hmin);
+                        var dk = (dz - hmin) / (hmax - hmin);
+                        // First triangle
+                        colors[ ipnc ]     = ((1 - ak) * rmin) + (ak * rmax);
+                        colors[ ipnc + 1 ] = ((1 - ak) * gmin) + (ak * gmax);
+                        colors[ ipnc + 2 ] = ((1 - ak) * bmin) + (ak * bmax);
+                        colors[ ipnc + 3 ] = ((1 - bk) * rmin) + (bk * rmax);
+                        colors[ ipnc + 4 ] = ((1 - bk) * gmin) + (bk * gmax);
+                        colors[ ipnc + 5 ] = ((1 - bk) * bmin) + (bk * bmax);
+                        colors[ ipnc + 6 ] = ((1 - ck) * rmin) + (ck * rmax);
+                        colors[ ipnc + 7 ] = ((1 - ck) * gmin) + (ck * gmax);
+                        colors[ ipnc + 8 ] = ((1 - ck) * bmin) + (ck * bmax);
+                        // Second triangle
+                        colors[ ipnc + 9 ]  = ((1 - ck) * rmin) + (ck * rmax);
+                        colors[ ipnc + 10 ] = ((1 - ck) * gmin) + (ck * gmax);
+                        colors[ ipnc + 11 ] = ((1 - ck) * bmin) + (ck * bmax);
+                        colors[ ipnc + 12 ] = ((1 - bk) * rmin) + (bk * rmax);
+                        colors[ ipnc + 13 ] = ((1 - bk) * gmin) + (bk * gmax);
+                        colors[ ipnc + 14 ] = ((1 - bk) * bmin) + (bk * bmax);
+                        colors[ ipnc + 15 ] = ((1 - dk) * rmin) + (dk * rmax);
+                        colors[ ipnc + 16 ] = ((1 - dk) * gmin) + (dk * gmax);
+                        colors[ ipnc + 17 ] = ((1 - dk) * bmin) + (dk * bmax);
+
+                        ipnc += 18;
+                    }
+                }
+
+                geometry.setIndex( new THREE.BufferAttribute( indices, 1 ) );
+                geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
+                geometry.addAttribute( 'normal', new THREE.BufferAttribute( normals, 3, true ) );
+                geometry.addAttribute( 'color', new THREE.BufferAttribute( colors, 3, true ) );
+                //geometry.computeBoundingSphere();
+
+                var material = new THREE.MeshLambertMaterial( {
+                    //color: 0xaaaaaa, specular: 0xffffff, shininess: 250,
+                    vertexColors: THREE.VertexColors, shading: THREE.FlatShading
+                } );
+                mesh = new THREE.Mesh( geometry, material );
+                scene.add( mesh );
+
+				container.innerHTML = "";
+
+				container.appendChild( renderer.domElement );
+
+				stats = new Stats();
+				container.appendChild( stats.dom );
+
+				//
+
+				window.addEventListener( 'resize', onWindowResize, false );
+
+			}
+
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+				controls.handleResize();
+
+			}
+
+            // Retrieve data
+            function onload () {
+
+                var canvas = document.createElement("canvas");
+                canvas.width = img.width;
+                canvas.height = img.height;
+                var context = canvas.getContext("2d");
+                context.drawImage(img, 0, 0);
+                var imgData = context.getImageData(0, 0, img.width, img.height).data;
+
+                var buffer = 0,
+                    r = 0, g = 0, b = 0,
+                    iHeights = 0
+                    heights = new Float32Array(img.width * img.height);
+
+                for (var i = 0; i < imgData.length; i += 4) {
+                    r = (imgData[i] << 16);
+                    g = (imgData[i+1] << 8);
+                    b = (imgData[i+2]);
+                    buffer = r | g | b;
+                    //imgData[i+4] -> alpha value
+
+                    buffer /= 100;
+
+                    // offset for better camera handling
+
+                    heights[iHeights] = buffer;
+                    iHeights += 1;
+                }
+
+                init(heights);
+                animate();
+            }
+
+            var img = new Image();
+            img.addEventListener("load", onload);
+            img.src = "heights1.png";
+
+			//
+
+			function animate() {
+
+				requestAnimationFrame( animate );
+
+				render();
+				stats.update();
+
+			}
+
+			function render() {
+
+				controls.update( clock.getDelta() );
+				renderer.render( scene, camera );
+
+			}
+
+		</script>
+	</body>
+</html>

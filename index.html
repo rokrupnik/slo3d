@@ -59,16 +59,16 @@
 
 			var triangles, mesh, texture;
 
-			var worldWidth = 1000, worldDepth = 1000,
+			var worldWidth = 17000, worldDepth = 17000,
 			worldHalfWidth = worldWidth / 2, worldHalfDepth = worldDepth / 2;
 
 			var clock = new THREE.Clock();
 
-			function init(heights) {
+			function init(heights, dataWidth, dataDepth, hmin, hmax) {
 
                 container = document.getElementById( 'container' );
 
-				camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 2000 );
+				camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 20000 );
 
 				scene = new THREE.Scene();//
 
@@ -88,8 +88,8 @@
 
                 //
 
-                camera.position.x = 0;
-                camera.position.y = heights[ worldHalfWidth * worldWidth + worldHalfDepth ] + 400;
+                camera.position.x = worldHalfDepth;
+                camera.position.y = heights[ (dataWidth / 2) * dataWidth + (dataDepth / 2) ] + worldHalfDepth;
                 camera.position.z = worldHalfWidth;
 
                 //
@@ -99,11 +99,11 @@
                 controls.dampingFactor = 1.0;
                 controls.enableZoom = true;
 
-                controls.target = new THREE.Vector3( worldDepth * 0.75, 0, worldHalfWidth );
+                controls.target = new THREE.Vector3( worldDepth * 0.5, 0, worldHalfWidth );
 
                 //
 
-				var triangles = (worldWidth - 1) * (worldDepth - 1) * 2;
+				var triangles = (dataWidth - 1) * (dataDepth - 1) * 2;
                 var geometry = new THREE.BufferGeometry();
                 var indices = new Uint32Array( triangles * 3 );
                 for ( var i = 0; i < indices.length; i ++ ) {
@@ -123,23 +123,30 @@
                 var ab = new THREE.Vector3();
                 var db = new THREE.Vector3();
 
-                //heights = [0, 0, 0, 0, 1, 0, 0, 0, 0];
-                for (var w = 0, ipnc = 0; w < worldWidth - 1; w++) {
-                    for (var d = 0; d < worldDepth - 1; d++) {
-                        var ih = w * worldWidth + d;
+                var widthScale = worldWidth / dataWidth;
+                var depthScale = worldDepth / dataDepth;
+                var heightScale = 0.1;
 
-                        var ax = worldWidth - w;
-                        var ay = d;
-                        var az = heights[ ih ];
-                        var bx = worldWidth - (w + 1);
-                        var by = d;
-                        var bz = heights[ ih + worldWidth ];
-                        var cx = worldWidth - w;
-                        var cy = d + 1;
-                        var cz = heights[ ih + 1 ];
-                        var dx = worldWidth - (w + 1);
-                        var dy = d + 1;
-                        var dz = heights[ ih + worldWidth + 1 ];
+                var rmin = 0, rmax = 255;
+                var gmin = 0, gmax = 255;
+                var bmin = 0, bmax = 255;
+
+                for (var w = 0, ipnc = 0; w < dataWidth - 1; w++) {
+                    for (var d = 0; d < dataDepth - 1; d++) {
+                        var ih = w * dataWidth + d;
+
+                        var ax = (dataWidth - w)                 * widthScale;
+                        var ay = (d)                             * depthScale;
+                        var az = (heights[ ih ])                 ;//* heightScale;
+                        var bx = (dataWidth - (w + 1))           * widthScale;
+                        var by = (d)                             * depthScale;
+                        var bz = (heights[ ih + dataWidth ])     ;//* heightScale;
+                        var cx = (dataWidth - w)                 * widthScale;
+                        var cy = (d + 1)                         * depthScale;
+                        var cz = (heights[ ih + 1 ])             ;//* heightScale;
+                        var dx = (dataWidth - (w + 1))           * widthScale;
+                        var dy = (d + 1)                         * depthScale;
+                        var dz = (heights[ ih + dataWidth + 1 ]) ;//* heightScale;
 
                         // First triangle
                         positions[ ipnc ]     = ax;
@@ -207,10 +214,6 @@
                         // k*low.green + (1-k)*hi.green,
                         // k*low.blue + (1-k)*hi.blue)
                         // where k = (height-minHeight) / (maxHeight-minHeight).
-                        var hmin = 500, hmax = 1000;
-                        var rmin = 0, rmax = 255;
-                        var gmin = 0, gmax = 255;
-                        var bmin = 0, bmax = 255;
                         var ak = (az - hmin) / (hmax - hmin);
                         var bk = (bz - hmin) / (hmax - hmin);
                         var ck = (cz - hmin) / (hmax - hmin);
@@ -248,7 +251,7 @@
 
                 var material = new THREE.MeshLambertMaterial( {
                     //color: 0xaaaaaa, specular: 0xffffff, shininess: 250,
-                    vertexColors: THREE.VertexColors, shading: THREE.FlatShading
+                    vertexColors: THREE.VertexColors, shading: THREE.SmoothShading
                 } );
                 mesh = new THREE.Mesh( geometry, material );
                 scene.add( mesh );
@@ -277,6 +280,33 @@
 
 			}
 
+            //
+
+            // Target projection to plane
+            var targetDirty = false;
+            document.body.onmouseup = function() {
+                targetDirty = true;
+            }
+
+            function projectTargetToPlane () {
+                var xc = camera.position.x,
+                    yc = camera.position.y,
+                    zc = camera.position.z,
+                    xt = controls.target.x,
+                    yt = controls.target.y,
+                    zt = controls.target.z,
+                    ky = (-yc) / (yt - yc);
+
+                controls.target.x = ky * (xt - xc) + xc;
+                controls.target.y = 0;
+                controls.target.z = ky * (zt - zc) + zc;
+
+                targetDirty = false;
+            }
+
+            //
+
+
             // Retrieve data
             function onload () {
 
@@ -289,7 +319,8 @@
 
                 var buffer = 0,
                     r = 0, g = 0, b = 0,
-                    iHeights = 0
+                    iHeights = 0,
+                    hmin = 3000, hmax = -100,
                     heights = new Float32Array(img.width * img.height);
 
                 for (var i = 0; i < imgData.length; i += 4) {
@@ -301,19 +332,23 @@
 
                     buffer /= 100;
 
-                    // offset for better camera handling
-
                     heights[iHeights] = buffer;
+
+                    if (buffer < hmin)
+                        hmin = buffer;
+                    if (buffer > hmax)
+                        hmax = buffer;
+
                     iHeights += 1;
                 }
 
-                init(heights);
+                init(heights, img.width, img.height, hmin, hmax);
                 animate();
             }
 
             var img = new Image();
             img.addEventListener("load", onload);
-            img.src = "heights.png";
+            img.src = "data/6/412_98.png";
 
 			//
 
@@ -323,6 +358,9 @@
 
 				render();
 				stats.update();
+
+                if (targetDirty)
+                    projectTargetToPlane();
 
 			}
 

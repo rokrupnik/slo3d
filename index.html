@@ -59,6 +59,7 @@
 
 			var triangles, mesh, texture;
 
+            var xOffset = 412000, yOffset = 98000;
 			var worldWidth = 17000, worldDepth = 17000,
 			worldHalfWidth = worldWidth / 2, worldHalfDepth = worldDepth / 2;
 
@@ -88,9 +89,11 @@
 
                 //
 
-                camera.position.x = worldHalfDepth;
-                camera.position.y = heights[ (dataWidth / 2) * dataWidth + (dataDepth / 2) ] + worldHalfDepth;
-                camera.position.z = worldHalfWidth;
+                camera.position.x = xOffset + worldHalfWidth;
+                camera.position.y = yOffset + 0;
+                camera.position.z = heights[ (dataWidth / 2) * dataWidth + (dataDepth / 2) ] + worldHalfDepth;
+
+                camera.up.set( 0, 0, 1 );
 
                 //
 
@@ -99,7 +102,7 @@
                 controls.dampingFactor = 1.0;
                 controls.enableZoom = true;
 
-                controls.target = new THREE.Vector3( worldDepth * 0.5, 0, worldHalfWidth );
+                controls.target = new THREE.Vector3( xOffset + worldHalfWidth, yOffset + worldHalfDepth, 0 );
 
                 //
 
@@ -135,39 +138,39 @@
                     for (var d = 0; d < dataDepth - 1; d++) {
                         var ih = w * dataWidth + d;
 
-                        var ax = (dataWidth - w)                 * widthScale;
-                        var ay = (d)                             * depthScale;
-                        var az = (heights[ ih ])                 ;//* heightScale;
-                        var bx = (dataWidth - (w + 1))           * widthScale;
-                        var by = (d)                             * depthScale;
-                        var bz = (heights[ ih + dataWidth ])     ;//* heightScale;
-                        var cx = (dataWidth - w)                 * widthScale;
-                        var cy = (d + 1)                         * depthScale;
-                        var cz = (heights[ ih + 1 ])             ;//* heightScale;
-                        var dx = (dataWidth - (w + 1))           * widthScale;
-                        var dy = (d + 1)                         * depthScale;
-                        var dz = (heights[ ih + dataWidth + 1 ]) ;//* heightScale;
+                        var ax = xOffset + d                                * depthScale;
+                        var ay = yOffset + (dataWidth - w)                  * widthScale;
+                        var az =               (heights[ ih ])                  ;//* heightScale;
+                        var bx = xOffset + d                                * depthScale;
+                        var by = yOffset + (dataWidth - (w + 1))            * widthScale;
+                        var bz = (heights[ ih + dataWidth ])                    ;//* heightScale;
+                        var cx = xOffset + (d + 1)                          * depthScale;
+                        var cy = yOffset + (dataWidth - w)                  * widthScale;
+                        var cz =               (heights[ ih + 1 ])              ;//* heightScale;
+                        var dx = xOffset + (d + 1)                          * depthScale;
+                        var dy = yOffset + (dataWidth - (w + 1))            * widthScale;
+                        var dz =               (heights[ ih + dataWidth + 1 ])  ;//* heightScale;
 
-                        // First triangle
+                        // First triangle - mind the triangles orientation
                         positions[ ipnc ]     = ax;
-                        positions[ ipnc + 1 ] = az;
-                        positions[ ipnc + 2 ] = ay;
-                        positions[ ipnc + 3 ] = bx;
-                        positions[ ipnc + 4 ] = bz;
-                        positions[ ipnc + 5 ] = by;
-                        positions[ ipnc + 6 ] = cx;
-                        positions[ ipnc + 7 ] = cz;
-                        positions[ ipnc + 8 ] = cy;
-                        // Second triangle - mind the triangle orientation
-                        positions[ ipnc + 9 ]  = cx;
-                        positions[ ipnc + 10 ] = cz;
-                        positions[ ipnc + 11 ] = cy;
-                        positions[ ipnc + 12 ] = bx;
-                        positions[ ipnc + 13 ] = bz;
-                        positions[ ipnc + 14 ] = by;
+                        positions[ ipnc + 1 ] = ay;
+                        positions[ ipnc + 2 ] = az;
+                        positions[ ipnc + 3 ] = cx;
+                        positions[ ipnc + 4 ] = cy;
+                        positions[ ipnc + 5 ] = cz;
+                        positions[ ipnc + 6 ] = bx;
+                        positions[ ipnc + 7 ] = by;
+                        positions[ ipnc + 8 ] = bz;
+                        // Second triangle
+                        positions[ ipnc + 9 ]  = bx;
+                        positions[ ipnc + 10 ] = by;
+                        positions[ ipnc + 11 ] = bz;
+                        positions[ ipnc + 12 ] = cx;
+                        positions[ ipnc + 13 ] = cy;
+                        positions[ ipnc + 14 ] = cz;
                         positions[ ipnc + 15 ] = dx;
-                        positions[ ipnc + 16 ] = dz;
-                        positions[ ipnc + 17 ] = dy;
+                        positions[ ipnc + 16 ] = dy;
+                        positions[ ipnc + 17 ] = dz;
 
                         // flat face normals
                         pA.set( ax, ay, az );
@@ -250,11 +253,18 @@
                 //geometry.computeBoundingSphere();
 
                 var material = new THREE.MeshLambertMaterial( {
-                    //color: 0xaaaaaa, specular: 0xffffff, shininess: 250,
+                    //color: 0xaaaaaa, specular: 0xffffff, shininess: 250, side: THREE.DoubleSide ,
                     vertexColors: THREE.VertexColors, shading: THREE.SmoothShading
                 } );
                 mesh = new THREE.Mesh( geometry, material );
                 scene.add( mesh );
+
+                // axes
+
+                // var axes = new THREE.AxisHelper( worldDepth );
+                // scene.add( axes );
+
+                //
 
 				container.innerHTML = "";
 
@@ -295,11 +305,11 @@
                     xt = controls.target.x,
                     yt = controls.target.y,
                     zt = controls.target.z,
-                    ky = (-yc) / (yt - yc);
+                    kz = (-zc) / (zt - zc);
 
-                controls.target.x = ky * (xt - xc) + xc;
-                controls.target.y = 0;
-                controls.target.z = ky * (zt - zc) + zc;
+                controls.target.x = kz * (xt - xc) + xc;
+                controls.target.y = kz * (yt - yc) + yc;
+                controls.target.z = 0;
 
                 targetDirty = false;
             }
@@ -316,6 +326,14 @@
                 var context = canvas.getContext("2d");
                 context.drawImage(img, 0, 0);
                 var imgData = context.getImageData(0, 0, img.width, img.height).data;
+
+                // The data property returns a Uint8ClampedArray which can be accessed
+                // to look at the raw pixel data; each pixel is represented by four
+                // one-byte values (red, green, blue, and alpha, in that order; that is, "RGBA" format).
+                // Each color component is represented by an integer between 0 and 255.
+                // Each component is assigned a consecutive index within the array,
+                // with the top left pixel's red component being at index 0 within the array.
+                // Pixels then proceed from left to right, then downward, throughout the array.
 
                 var buffer = 0,
                     r = 0, g = 0, b = 0,

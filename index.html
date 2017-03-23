@@ -155,22 +155,22 @@
                         positions[ ipnc ]     = ax;
                         positions[ ipnc + 1 ] = ay;
                         positions[ ipnc + 2 ] = az;
-                        positions[ ipnc + 3 ] = cx;
-                        positions[ ipnc + 4 ] = cy;
-                        positions[ ipnc + 5 ] = cz;
-                        positions[ ipnc + 6 ] = bx;
-                        positions[ ipnc + 7 ] = by;
-                        positions[ ipnc + 8 ] = bz;
+                        positions[ ipnc + 3 ] = bx;
+                        positions[ ipnc + 4 ] = by;
+                        positions[ ipnc + 5 ] = bz;
+                        positions[ ipnc + 6 ] = cx;
+                        positions[ ipnc + 7 ] = cy;
+                        positions[ ipnc + 8 ] = cz;
                         // Second triangle
                         positions[ ipnc + 9 ]  = bx;
                         positions[ ipnc + 10 ] = by;
                         positions[ ipnc + 11 ] = bz;
-                        positions[ ipnc + 12 ] = cx;
-                        positions[ ipnc + 13 ] = cy;
-                        positions[ ipnc + 14 ] = cz;
-                        positions[ ipnc + 15 ] = dx;
-                        positions[ ipnc + 16 ] = dy;
-                        positions[ ipnc + 17 ] = dz;
+                        positions[ ipnc + 12 ] = dx;
+                        positions[ ipnc + 13 ] = dy;
+                        positions[ ipnc + 14 ] = dz;
+                        positions[ ipnc + 15 ] = cx;
+                        positions[ ipnc + 16 ] = cy;
+                        positions[ ipnc + 17 ] = cz;
 
                         // flat face normals
                         pA.set( ax, ay, az );
@@ -180,11 +180,11 @@
                         // First triangle
                         cb.subVectors( pC, pB );
                         ab.subVectors( pA, pB );
-                        cb.cross( ab );
-                        cb.normalize();
-                        var nx0 = cb.x;
-                        var ny0 = cb.y;
-                        var nz0 = cb.z;
+                        ab.cross( cb );
+                        ab.normalize();
+                        var nx0 = ab.x;
+                        var ny0 = ab.y;
+                        var nz0 = ab.z;
                         normals[ ipnc ]     = nx0 * 32767;
                         normals[ ipnc + 1 ] = ny0 * 32767;
                         normals[ ipnc + 2 ] = nz0 * 32767;
@@ -197,11 +197,11 @@
                         // Second triangle
                         db.subVectors( pD, pB );
                         cb.subVectors( pC, pB );
-                        db.cross( cb );
-                        db.normalize();
-                        var nx1 = db.x;
-                        var ny1 = db.y;
-                        var nz1 = db.z;
+                        cb.cross( db );
+                        cb.normalize();
+                        var nx1 = cb.x;
+                        var ny1 = cb.y;
+                        var nz1 = cb.z;
                         normals[ ipnc + 9 ]  = nx1 * 32767;
                         normals[ ipnc + 10 ] = ny1 * 32767;
                         normals[ ipnc + 11 ] = nz1 * 32767;

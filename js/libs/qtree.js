@@ -426,7 +426,8 @@ function QuadTree(x, y, w, h, options) {
             maxc = str.maxc;
             leafratio = str.leafratio;
             root = str.root;
-        }
+        },
+        root: root
     };
 }
 

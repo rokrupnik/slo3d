@@ -44,6 +44,8 @@
 		<script src="js/libs/Detector.js"></script>
 		<script src="js/libs/stats.min.js"></script>
 
+		<script src="js/libs/qtree.js"></script>
+
 		<script>
 
 			if ( ! Detector.webgl ) {
@@ -498,6 +500,83 @@
 
                 return ix;
             }
+
+            Map.buildQtree = function (x, y, w, d) {
+                var qt = QuadTree(x, y, w, d, { maxchildren: 4 });
+
+                for (var ix = x; ix < x + w; ix += 1000) {
+                    for (var iy = y; iy < y + d; iy += 1000) {
+                        qt.put({ x: ix, y: iy, w: 999.99, h: 999.99 });
+                    }
+                }
+
+                return qt;
+            };
+            Map.qt = Map.buildQtree(xOffset, yOffset, worldWidth, worldDepth);//374000, 31000, 256000, 256000);//
+
+            Map.searchQtree = function (qt, x, y, wh) {
+                // For smaller areas than 1kx1k use default get method
+                if (wh <= 1000) {
+                    var correctObj = null;
+                    qt.get({ x: x, y: y, w: wh, h: wh }, function (obj) {
+                        if (obj.x <= x && x < obj.x + 1000 &&
+                            obj.y <= y && y < obj.y + 1000) {
+                            // Save result
+                            correctObj = obj;
+                            // Finish iteration
+                            return false;
+                        } else {
+                            // Continue  iteration
+                            return true;
+                        }
+                    });
+                    return correctObj;
+                }
+
+                // For larger areas use recursive search on root node
+                var root = qt.root;
+
+                // Sanity check if searched location is in the qtree
+                if (x < root.x ||
+                    y < root.y ||
+                    root.x + root.w < x ||
+                    root.y + root.h < y) {
+                    return null;
+                }
+
+                var searchQtreeRecursive = function (n, x, y, wh) {
+                    if (n.w / 2 > wh) {
+                        // Select node for recursion
+                        var w2 = n.w / 2,
+                            h2 = n.h / 2;
+
+                        // right top
+                        if (n.n.length > 3 && (n.x + w2) <= x && (n.y + h2) <= y)
+                            return searchQtreeRecursive(n.n[3], x, y, wh);
+                        // left top
+                        else if (n.n.length > 2 && x < (n.x + w2) && (n.y + h2) <= y)
+                            return searchQtreeRecursive(n.n[2], x, y, wh);
+                        // right bottom
+                        else if (n.n.length > 1 && (n.x + w2) <= x && y < (n.y + h2))
+                            return searchQtreeRecursive(n.n[1], x, y, wh);
+                        // left bottom
+                        else if (n.n.length > 0)
+                            return searchQtreeRecursive(n.n[0], x, y, wh);
+                        else
+                            throw new ReferenceError('Map.searchQtree: recursion error.');
+
+                        // If no result was found on the lower levels, return this node.
+                        //return nr || n;
+                    } else if (n.w / 2 < wh && wh <= n.w) {
+                        // Stop recursion
+                        return n;
+                    } else {
+                        throw new ReferenceError('Map.searchQtree: recursion finished in a wrong node.');
+                    }
+                };
+
+                return searchQtreeRecursive(root, x, y, wh);
+            };
 
             //
 

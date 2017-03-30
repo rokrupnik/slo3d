@@ -36,17 +36,20 @@ def concat_and_save(z, x0, x_range, y0, y_range):
 
     for (x, x_image) in zip(range(x0, x1 + 1), range(0, image_size * x_range, image_size)):
         for (y, y_image) in zip(range(y0, y1 + 1), range(image_size * (y_range - 1), -1, -image_size)):
-            image = Image.open('../../data/%s/%s_%s.png' % (z, x, y))
+            try:
+                image = Image.open('../../data/%s/%s_%s.png' % (z, x, y))
 
-            blank_image.paste(image, (x_image, y_image))
+                blank_image.paste(image, (x_image, y_image))
+            except FileNotFoundError:
+                continue
 
     blank_image.save('../data/%s/%s_%s.png' % (z, x0, y0))
 
 def generate_tiles(level, x, y, dim):
-    if (dim < 1 or level > 10):
+    if (dim < 1 or level > 3):
         return
 
-    if (level in [6, 7, 8, 9, 10]):
+    if (level in [3]):
         concat_and_save(level, x, dim, y, dim)
     print(level, x, dim, y, dim)
 

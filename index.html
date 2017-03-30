@@ -60,7 +60,7 @@
 
 			var camera, controls, scene, renderer, rayCaster;
 
-			var triangles, mesh, texture, intersection, worldData;
+			var triangles, baseMesh, detailedMesh, texture, intersection, worldData;
 
             var xOffset = 412000, yOffset = 98000;
 			var worldWidth = 16000, worldDepth = 16000,
@@ -255,8 +255,6 @@
                     }
                 }
 
-                worldData = positions;
-
                 geometry.setIndex( new THREE.BufferAttribute( indices, 1 ) );
                 geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
                 geometry.addAttribute( 'normal', new THREE.BufferAttribute( normals, 3, true ) );
@@ -267,8 +265,8 @@
                     //color: 0xaaaaaa, specular: 0xffffff, shininess: 250, side: THREE.DoubleSide ,
                     vertexColors: THREE.VertexColors, shading: THREE.SmoothShading
                 } );
-                mesh = new THREE.Mesh( geometry, material );
-                scene.add( mesh );
+                baseMesh = new THREE.Mesh( geometry, material );
+                scene.add( baseMesh );
 
                 // axes
 
@@ -323,93 +321,479 @@
 
             //
 
-            // DATA
-
             var Data = {
-                initialHeightMap: "data/6/412_98.png"
+                initialHeightMap: "data/6/412_98.png",
+                img: null,
+                hmin: 3000.0,
+                hmax: -1,
+                baseLevel: null,
+
+                onInitialDataLoad: function () {
+                    var heights = Data.getHeights(Data.img);
+
+                    Data.baseLevel = {
+                        heights: heights,
+                        dataWidth: Data.img.width,
+                        xOffset: xOffset,
+                        yOffset: yOffset,
+                        level: 6,
+                        worldWidth: LOD.getLevelDimension(6)
+                    };
+
+                    init(heights, Data.img.width, Data.img.height, Data.hmin, Data.hmax);
+                    animate();
+
+                    Data.img = null;
+                },
+
+                onDataLoad: function () {
+
+                    var baseLevel = Data.baseLevel;
+
+                    var ix = Data.img.src.length - 11,
+                        iy = Data.img.src.length - 7,
+                        ilevel = Data.img.src.length - 13,
+                        level = Data.img.src.substring(ilevel, ilevel + 1) * 1,
+                        hmin = Data.hmin,
+                        hmax = Data.hmax;
+
+                    var nextLevel = {
+                        heights: Data.getHeights(Data.img),
+                        dataWidth: Data.img.width,
+                        xOffset: Data.img.src.substring(ix, ix + 3) * 1000,
+                        yOffset: Data.img.src.substring(iy, iy + 3) * 1000,
+                        level: level,
+                        worldWidth: LOD.getLevelDimension(level)
+                    };
+
+
+                    var squares = baseLevel.dataWidth - 1 + nextLevel.dataWidth - 1;
+
+
+                    // Base level
+                    var triangles = squares * squares * 2;
+                    var geometry = new THREE.BufferGeometry();
+                    var indices = new Uint32Array( triangles * 3 );
+                    for ( var i = 0; i < indices.length; i ++ ) {
+                        indices[ i ] = i;
+                    }
+                    var positions = new Float32Array( triangles * 3 * 3 );
+                    var normals = new Int16Array( triangles * 3 * 3 );
+                    var colors = new Uint8Array( triangles * 3 * 3 );
+                    var color = new THREE.Color();
+                    //var n = 800, n2 = n/2;  // triangles spread in the cube
+                    //var d = 12, d2 = d/2;   // individual triangle size
+                    var pA = new THREE.Vector3();
+                    var pB = new THREE.Vector3();
+                    var pC = new THREE.Vector3();
+                    var pD = new THREE.Vector3();
+                    var cb = new THREE.Vector3();
+                    var ab = new THREE.Vector3();
+                    var db = new THREE.Vector3();
+
+                    var dataWidth = baseLevel.dataWidth;
+                    var dataDepth = dataWidth;
+                    var worldWidth = baseLevel.worldWidth;
+                    var worldDepth = worldWidth;
+                    var heights = baseLevel.heights;
+
+                    var widthScale = worldWidth / dataWidth;
+                    var depthScale = worldDepth / dataDepth;
+
+                    var rmin = 0, rmax = 255;
+                    var gmin = 0, gmax = 255;
+                    var bmin = 0, bmax = 255;
+
+                    var ipnc = 0;
+
+                    for (var w = 0; w < dataWidth - 1; w++) {
+                        for (var d = 0; d < dataDepth - 1; d++) {
+                            var ih = w * dataWidth + d;
+
+                            var ax = xOffset + d                                * depthScale;
+                            var ay = yOffset + (dataWidth - w)                  * widthScale;
+                            var az =               (heights[ ih ])                  ;//* heightScale;
+                            var bx = xOffset + d                                * depthScale;
+                            var by = yOffset + (dataWidth - (w + 1))            * widthScale;
+                            var bz = (heights[ ih + dataWidth ])                    ;//* heightScale;
+                            var cx = xOffset + (d + 1)                          * depthScale;
+                            var cy = yOffset + (dataWidth - w)                  * widthScale;
+                            var cz =               (heights[ ih + 1 ])              ;//* heightScale;
+                            var dx = xOffset + (d + 1)                          * depthScale;
+                            var dy = yOffset + (dataWidth - (w + 1))            * widthScale;
+                            var dz =               (heights[ ih + dataWidth + 1 ])  ;//* heightScale;
+
+                            if (nextLevel.xOffset <= ax && ax <= nextLevel.xOffset + nextLevel.worldWidth &&
+                                nextLevel.yOffset <= ay && ay <= nextLevel.yOffset + nextLevel.worldWidth &&
+                                nextLevel.xOffset <= bx && bx <= nextLevel.xOffset + nextLevel.worldWidth &&
+                                nextLevel.yOffset <= by && by <= nextLevel.yOffset + nextLevel.worldWidth &&
+                                nextLevel.xOffset <= cx && cx <= nextLevel.xOffset + nextLevel.worldWidth &&
+                                nextLevel.yOffset <= cy && cy <= nextLevel.yOffset + nextLevel.worldWidth &&
+                                nextLevel.xOffset <= dx && dx <= nextLevel.xOffset + nextLevel.worldWidth &&
+                                nextLevel.yOffset <= dy && dy <= nextLevel.yOffset + nextLevel.worldWidth)
+                                continue;
+
+                            // First triangle - mind the triangles orientation
+                            positions[ ipnc ]     = ax;
+                            positions[ ipnc + 1 ] = ay;
+                            positions[ ipnc + 2 ] = az;
+                            positions[ ipnc + 3 ] = bx;
+                            positions[ ipnc + 4 ] = by;
+                            positions[ ipnc + 5 ] = bz;
+                            positions[ ipnc + 6 ] = cx;
+                            positions[ ipnc + 7 ] = cy;
+                            positions[ ipnc + 8 ] = cz;
+                            // Second triangle
+                            positions[ ipnc + 9 ]  = bx;
+                            positions[ ipnc + 10 ] = by;
+                            positions[ ipnc + 11 ] = bz;
+                            positions[ ipnc + 12 ] = dx;
+                            positions[ ipnc + 13 ] = dy;
+                            positions[ ipnc + 14 ] = dz;
+                            positions[ ipnc + 15 ] = cx;
+                            positions[ ipnc + 16 ] = cy;
+                            positions[ ipnc + 17 ] = cz;
+
+                            // flat face normals
+                            pA.set( ax, ay, az );
+                            pB.set( bx, by, bz );
+                            pC.set( cx, cy, cz );
+                            pD.set( dx, dy, dz );
+                            // First triangle
+                            cb.subVectors( pC, pB );
+                            ab.subVectors( pA, pB );
+                            ab.cross( cb );
+                            ab.normalize();
+                            var nx0 = ab.x;
+                            var ny0 = ab.y;
+                            var nz0 = ab.z;
+                            normals[ ipnc ]     = nx0 * 32767;
+                            normals[ ipnc + 1 ] = ny0 * 32767;
+                            normals[ ipnc + 2 ] = nz0 * 32767;
+                            normals[ ipnc + 3 ] = nx0 * 32767;
+                            normals[ ipnc + 4 ] = ny0 * 32767;
+                            normals[ ipnc + 5 ] = nz0 * 32767;
+                            normals[ ipnc + 6 ] = nx0 * 32767;
+                            normals[ ipnc + 7 ] = ny0 * 32767;
+                            normals[ ipnc + 8 ] = nz0 * 32767;
+                            // Second triangle
+                            db.subVectors( pD, pB );
+                            cb.subVectors( pC, pB );
+                            cb.cross( db );
+                            cb.normalize();
+                            var nx1 = cb.x;
+                            var ny1 = cb.y;
+                            var nz1 = cb.z;
+                            normals[ ipnc + 9 ]  = nx1 * 32767;
+                            normals[ ipnc + 10 ] = ny1 * 32767;
+                            normals[ ipnc + 11 ] = nz1 * 32767;
+                            normals[ ipnc + 12 ] = nx1 * 32767;
+                            normals[ ipnc + 13 ] = ny1 * 32767;
+                            normals[ ipnc + 14 ] = nz1 * 32767;
+                            normals[ ipnc + 15 ] = nx1 * 32767;
+                            normals[ ipnc + 16 ] = ny1 * 32767;
+                            normals[ ipnc + 17 ] = nz1 * 32767;
+
+                            // colors
+                            // (k*low.red + (1-k)*hi.red,
+                            // k*low.green + (1-k)*hi.green,
+                            // k*low.blue + (1-k)*hi.blue)
+                            // where k = (height-minHeight) / (maxHeight-minHeight).
+                            var ak = (az - hmin) / (hmax - hmin);
+                            var bk = (bz - hmin) / (hmax - hmin);
+                            var ck = (cz - hmin) / (hmax - hmin);
+                            var dk = (dz - hmin) / (hmax - hmin);
+                            // First triangle
+                            colors[ ipnc ]     = ((1 - ak) * rmin) + (ak * rmax);
+                            colors[ ipnc + 1 ] = ((1 - ak) * gmin) + (ak * gmax);
+                            colors[ ipnc + 2 ] = ((1 - ak) * bmin) + (ak * bmax);
+                            colors[ ipnc + 3 ] = ((1 - bk) * rmin) + (bk * rmax);
+                            colors[ ipnc + 4 ] = ((1 - bk) * gmin) + (bk * gmax);
+                            colors[ ipnc + 5 ] = ((1 - bk) * bmin) + (bk * bmax);
+                            colors[ ipnc + 6 ] = ((1 - ck) * rmin) + (ck * rmax);
+                            colors[ ipnc + 7 ] = ((1 - ck) * gmin) + (ck * gmax);
+                            colors[ ipnc + 8 ] = ((1 - ck) * bmin) + (ck * bmax);
+                            // Second triangle
+                            colors[ ipnc + 9 ]  = ((1 - ck) * rmin) + (ck * rmax);
+                            colors[ ipnc + 10 ] = ((1 - ck) * gmin) + (ck * gmax);
+                            colors[ ipnc + 11 ] = ((1 - ck) * bmin) + (ck * bmax);
+                            colors[ ipnc + 12 ] = ((1 - bk) * rmin) + (bk * rmax);
+                            colors[ ipnc + 13 ] = ((1 - bk) * gmin) + (bk * gmax);
+                            colors[ ipnc + 14 ] = ((1 - bk) * bmin) + (bk * bmax);
+                            colors[ ipnc + 15 ] = ((1 - dk) * rmin) + (dk * rmax);
+                            colors[ ipnc + 16 ] = ((1 - dk) * gmin) + (dk * gmax);
+                            colors[ ipnc + 17 ] = ((1 - dk) * bmin) + (dk * bmax);
+
+                            ipnc += 18;
+                        }
+                    }
+
+                    // geometry.setIndex( new THREE.BufferAttribute( indices, 1 ) );
+                    // geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
+                    // geometry.addAttribute( 'normal', new THREE.BufferAttribute( normals, 3, true ) );
+                    // geometry.addAttribute( 'color', new THREE.BufferAttribute( colors, 3, true ) );
+                    // //geometry.computeBoundingSphere();
+
+                    // var material = new THREE.MeshLambertMaterial( {
+                    //     //color: 0xaaaaaa, specular: 0xffffff, shininess: 250, side: THREE.DoubleSide ,
+                    //     vertexColors: THREE.VertexColors, shading: THREE.SmoothShading
+                    // } );
+                    // mesh = new THREE.Mesh( geometry, material );
+                    // scene.add( mesh );
+
+
+
+
+                    // var triangles = (dataWidth - 1) * (dataDepth - 1) * 2;
+                    // var geometry = new THREE.BufferGeometry();
+                    // var indices = new Uint32Array( triangles * 3 );
+                    // for ( var i = 0; i < indices.length; i ++ ) {
+                    //     indices[ i ] = i;
+                    // }
+                    // var positions = new Float32Array( triangles * 3 * 3 );
+                    // var normals = new Int16Array( triangles * 3 * 3 );
+                    // var colors = new Uint8Array( triangles * 3 * 3 );
+                    // var color = new THREE.Color();
+                    // //var n = 800, n2 = n/2;  // triangles spread in the cube
+                    // //var d = 12, d2 = d/2;   // individual triangle size
+                    // var pA = new THREE.Vector3();
+                    // var pB = new THREE.Vector3();
+                    // var pC = new THREE.Vector3();
+                    // var pD = new THREE.Vector3();
+                    // var cb = new THREE.Vector3();
+                    // var ab = new THREE.Vector3();
+                    // var db = new THREE.Vector3();
+
+                    dataWidth = nextLevel.dataWidth;
+                    dataDepth = dataWidth;
+                    worldWidth = nextLevel.worldWidth;
+                    worldDepth = worldWidth;
+                    heights = nextLevel.heights;
+                    xOffset = nextLevel.xOffset;
+                    yOffset = nextLevel.yOffset;
+
+                    widthScale = worldWidth / dataWidth;
+                    depthScale = worldDepth / dataDepth;
+
+                    for (w = 0; w < dataWidth - 1; w++) {
+                        for (d = 0; d < dataDepth - 1; d++) {
+                            var ih = w * dataWidth + d;
+
+                            var ax = xOffset + d                                * depthScale;
+                            var ay = yOffset + (dataWidth - w)                  * widthScale;
+                            var az =               (heights[ ih ])                  ;//* heightScale;
+                            var bx = xOffset + d                                * depthScale;
+                            var by = yOffset + (dataWidth - (w + 1))            * widthScale;
+                            var bz =         (heights[ ih + dataWidth ])                    ;//* heightScale;
+                            var cx = xOffset + (d + 1)                          * depthScale;
+                            var cy = yOffset + (dataWidth - w)                  * widthScale;
+                            var cz =               (heights[ ih + 1 ])              ;//* heightScale;
+                            var dx = xOffset + (d + 1)                          * depthScale;
+                            var dy = yOffset + (dataWidth - (w + 1))            * widthScale;
+                            var dz =               (heights[ ih + dataWidth + 1 ])  ;//* heightScale;
+
+                            // First triangle - mind the triangles orientation
+                            positions[ ipnc ]     = ax;
+                            positions[ ipnc + 1 ] = ay;
+                            positions[ ipnc + 2 ] = az;
+                            positions[ ipnc + 3 ] = bx;
+                            positions[ ipnc + 4 ] = by;
+                            positions[ ipnc + 5 ] = bz;
+                            positions[ ipnc + 6 ] = cx;
+                            positions[ ipnc + 7 ] = cy;
+                            positions[ ipnc + 8 ] = cz;
+                            // Second triangle
+                            positions[ ipnc + 9 ]  = bx;
+                            positions[ ipnc + 10 ] = by;
+                            positions[ ipnc + 11 ] = bz;
+                            positions[ ipnc + 12 ] = dx;
+                            positions[ ipnc + 13 ] = dy;
+                            positions[ ipnc + 14 ] = dz;
+                            positions[ ipnc + 15 ] = cx;
+                            positions[ ipnc + 16 ] = cy;
+                            positions[ ipnc + 17 ] = cz;
+
+                            // flat face normals
+                            pA.set( ax, ay, az );
+                            pB.set( bx, by, bz );
+                            pC.set( cx, cy, cz );
+                            pD.set( dx, dy, dz );
+                            // First triangle
+                            cb.subVectors( pC, pB );
+                            ab.subVectors( pA, pB );
+                            ab.cross( cb );
+                            ab.normalize();
+                            var nx0 = ab.x;
+                            var ny0 = ab.y;
+                            var nz0 = ab.z;
+                            normals[ ipnc ]     = nx0 * 32767;
+                            normals[ ipnc + 1 ] = ny0 * 32767;
+                            normals[ ipnc + 2 ] = nz0 * 32767;
+                            normals[ ipnc + 3 ] = nx0 * 32767;
+                            normals[ ipnc + 4 ] = ny0 * 32767;
+                            normals[ ipnc + 5 ] = nz0 * 32767;
+                            normals[ ipnc + 6 ] = nx0 * 32767;
+                            normals[ ipnc + 7 ] = ny0 * 32767;
+                            normals[ ipnc + 8 ] = nz0 * 32767;
+                            // Second triangle
+                            db.subVectors( pD, pB );
+                            cb.subVectors( pC, pB );
+                            cb.cross( db );
+                            cb.normalize();
+                            var nx1 = cb.x;
+                            var ny1 = cb.y;
+                            var nz1 = cb.z;
+                            normals[ ipnc + 9 ]  = nx1 * 32767;
+                            normals[ ipnc + 10 ] = ny1 * 32767;
+                            normals[ ipnc + 11 ] = nz1 * 32767;
+                            normals[ ipnc + 12 ] = nx1 * 32767;
+                            normals[ ipnc + 13 ] = ny1 * 32767;
+                            normals[ ipnc + 14 ] = nz1 * 32767;
+                            normals[ ipnc + 15 ] = nx1 * 32767;
+                            normals[ ipnc + 16 ] = ny1 * 32767;
+                            normals[ ipnc + 17 ] = nz1 * 32767;
+
+                            // colors
+                            // (k*low.red + (1-k)*hi.red,
+                            // k*low.green + (1-k)*hi.green,
+                            // k*low.blue + (1-k)*hi.blue)
+                            // where k = (height-minHeight) / (maxHeight-minHeight).
+                            var ak = (az - hmin) / (hmax - hmin);
+                            var bk = (bz - hmin) / (hmax - hmin);
+                            var ck = (cz - hmin) / (hmax - hmin);
+                            var dk = (dz - hmin) / (hmax - hmin);
+                            // First triangle
+                            colors[ ipnc ]     = ((1 - ak) * rmin) + (ak * rmax);
+                            colors[ ipnc + 1 ] = ((1 - ak) * gmin) + (ak * gmax);
+                            colors[ ipnc + 2 ] = ((1 - ak) * bmin) + (ak * bmax);
+                            colors[ ipnc + 3 ] = ((1 - bk) * rmin) + (bk * rmax);
+                            colors[ ipnc + 4 ] = ((1 - bk) * gmin) + (bk * gmax);
+                            colors[ ipnc + 5 ] = ((1 - bk) * bmin) + (bk * bmax);
+                            colors[ ipnc + 6 ] = ((1 - ck) * rmin) + (ck * rmax);
+                            colors[ ipnc + 7 ] = ((1 - ck) * gmin) + (ck * gmax);
+                            colors[ ipnc + 8 ] = ((1 - ck) * bmin) + (ck * bmax);
+                            // Second triangle
+                            colors[ ipnc + 9 ]  = ((1 - ck) * rmin) + (ck * rmax);
+                            colors[ ipnc + 10 ] = ((1 - ck) * gmin) + (ck * gmax);
+                            colors[ ipnc + 11 ] = ((1 - ck) * bmin) + (ck * bmax);
+                            colors[ ipnc + 12 ] = ((1 - bk) * rmin) + (bk * rmax);
+                            colors[ ipnc + 13 ] = ((1 - bk) * gmin) + (bk * gmax);
+                            colors[ ipnc + 14 ] = ((1 - bk) * bmin) + (bk * bmax);
+                            colors[ ipnc + 15 ] = ((1 - dk) * rmin) + (dk * rmax);
+                            colors[ ipnc + 16 ] = ((1 - dk) * gmin) + (dk * gmax);
+                            colors[ ipnc + 17 ] = ((1 - dk) * bmin) + (dk * bmax);
+
+                            ipnc += 18;
+                        }
+                    }
+
+                    geometry.setIndex( new THREE.BufferAttribute( indices, 1 ) );
+                    geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
+                    geometry.addAttribute( 'normal', new THREE.BufferAttribute( normals, 3, true ) );
+                    geometry.addAttribute( 'color', new THREE.BufferAttribute( colors, 3, true ) );
+                    //geometry.computeBoundingSphere();
+
+                    var material = new THREE.MeshLambertMaterial( {
+                        //color: 0xaaaaaa, specular: 0xffffff, shininess: 250, side: THREE.DoubleSide ,
+                        vertexColors: THREE.VertexColors//, shading: THREE.FlatShading
+                    } );
+                    detailedMesh = new THREE.Mesh( geometry, material );
+                    scene.add( detailedMesh );
+                    scene.remove(baseMesh);
+
+                    //init(processedImage.heights, Data.img.width, Data.img.height, processedImage.hmin, processedImage.hmax);
+
+                    Data.img = null;
+
+                    LOD.updateInProgress = false;
+                },
+
+                getHeights: function (image) {
+                    var canvas = document.createElement("canvas");
+                    canvas.width = image.width;
+                    canvas.height = image.height;
+                    var context = canvas.getContext("2d");
+                    context.drawImage(image, 0, 0);
+
+                    /** IMAGE DATA EXPLANATION
+                     * The data property returns a Uint8ClampedArray which can be accessed
+                     * to look at the raw pixel data; each pixel is represented by four
+                     * one-byte values (red, green, blue, and alpha, in that order; that is, "RGBA" format).
+                     * Each color component is represented by an integer between 0 and 255.
+                     * Each component is assigned a consecutive index within the array,
+                     * with the top left pixel's red component being at index 0 within the array.
+                     * Pixels then proceed from left to right, then downward, throughout the array.
+                     */
+                    var imageData = context.getImageData(0, 0, image.width, image.height).data;
+
+                    var buffer = 0,
+                        r = 0, g = 0, b = 0,
+                        iHeights = 0,
+                        heights = new Float32Array(image.width * image.height);
+
+                    for (var i = 0; i < imageData.length; i += 4) {
+                        r = (imageData[i] << 16);
+                        g = (imageData[i+1] << 8);
+                        b = (imageData[i+2]);
+                        buffer = r | g | b;
+                        //imageData[i+4] -> alpha value
+
+                        buffer /= 100;
+
+                        heights[iHeights] = buffer;
+
+                        if (buffer < Data.hmin)
+                            Data.hmin = buffer;
+                        if (buffer > Data.hmax)
+                            Data.hmax = buffer;
+
+                        iHeights += 1;
+                    }
+
+                    return heights;
+                },
+
+                loadData: function (level, x, y) {
+                    Data.img = new Image();
+                    Data.img.addEventListener("load", Data.onDataLoad);
+                    Data.img.src = 'data/' + level + '/' + Math.floor(x / 1000) + '_' + Math.floor(y / 1000) + '.png';
+                },
+
+                init: function () {
+                    Data.img = new Image();
+                    Data.img.addEventListener("load", Data.onInitialDataLoad);
+                    Data.img.src = Data.initialHeightMap;
+                },
             };
 
-            // Retrieve data
-            Data.onInitialMapLoad = function () {
-                var processedImage = Data.processImage(img);
+            Data.init();
 
-                init(processedImage.heights, img.width, img.height, processedImage.hmin, processedImage.hmax);
-                animate();
-            }
-
-            var img = new Image();
-            img.addEventListener("load", Data.onInitialMapLoad);
-            img.src = Data.initialHeightMap;
-
-            Data.processImage = function (image) {
-                var canvas = document.createElement("canvas");
-                canvas.width = image.width;
-                canvas.height = image.height;
-                var context = canvas.getContext("2d");
-                context.drawImage(image, 0, 0);
-                var imageData = context.getImageData(0, 0, image.width, image.height).data;
-
-                // The data property returns a Uint8ClampedArray which can be accessed
-                // to look at the raw pixel data; each pixel is represented by four
-                // one-byte values (red, green, blue, and alpha, in that order; that is, "RGBA" format).
-                // Each color component is represented by an integer between 0 and 255.
-                // Each component is assigned a consecutive index within the array,
-                // with the top left pixel's red component being at index 0 within the array.
-                // Pixels then proceed from left to right, then downward, throughout the array.
-
-                var buffer = 0,
-                    r = 0, g = 0, b = 0,
-                    iHeights = 0,
-                    hmin = 3000, hmax = -100,
-                    heights = new Float32Array(image.width * image.height);
-
-                for (var i = 0; i < imageData.length; i += 4) {
-                    r = (imageData[i] << 16);
-                    g = (imageData[i+1] << 8);
-                    b = (imageData[i+2]);
-                    buffer = r | g | b;
-                    //imageData[i+4] -> alpha value
-
-                    buffer /= 100;
-
-                    heights[iHeights] = buffer;
-
-                    if (buffer < hmin)
-                        hmin = buffer;
-                    if (buffer > hmax)
-                        hmax = buffer;
-
-                    iHeights += 1;
-                }
-
-                return {
-                    heights: heights,
-                    hmin: hmin,
-                    hmax: hmax
-                };
-            };
 
             //
 
-            // CONTROLS
-            var Controls = {};
+            var Controls = {
+                /**
+                 *  Target projection to z=0 plane when we stop panning
+                 */
+                projectTargetToPlane: function () {
+                    var xc = camera.position.x,
+                        yc = camera.position.y,
+                        zc = camera.position.z,
+                        xt = controls.target.x,
+                        yt = controls.target.y,
+                        zt = controls.target.z,
+                        kz = (-zc) / (zt - zc);
 
-            // Target projection to z=0 plane when we stop panning
-            Controls.projectTargetToPlane = function () {
-                var xc = camera.position.x,
-                    yc = camera.position.y,
-                    zc = camera.position.z,
-                    xt = controls.target.x,
-                    yt = controls.target.y,
-                    zt = controls.target.z,
-                    kz = (-zc) / (zt - zc);
-
-                controls.target.x = kz * (xt - xc) + xc;
-                controls.target.y = kz * (yt - yc) + yc;
-                controls.target.z = 0;
+                    controls.target.x = kz * (xt - xc) + xc;
+                    controls.target.y = kz * (yt - yc) + yc;
+                    controls.target.z = 0;
+                },
+                init: function () {
+                    document.body.addEventListener( 'mouseup', Controls.projectTargetToPlane, false );
+                }
             };
 
-            document.body.addEventListener( 'mouseup', Controls.projectTargetToPlane, false );
+            Controls.init();
 
             // Movement restrictions
 
@@ -440,143 +824,155 @@
 
             // MAP
 
-            var Map = {};
+            var World = {
+                qt: null,
 
-            /**
-             * Get first intersection of terrain and the line from camera to controls target.
-             * It is done by raycasting center of screen from camera position.
-             *
-             * @returns {Object} intersection
-             */
-            Map.getViewIntersection = function () {
-                // target position in normalized device coordinates
-	            // (-1 to +1) for both components
-                targetOnScreen.x = 0;
-                targetOnScreen.y = 0;
+                /**
+                 * Get first intersection of terrain and the line from camera to controls target.
+                 * It is done by raycasting center of screen from camera position.
+                 *
+                 * @return {Object} intersection
+                 */
+                getViewIntersection: function () {
+                    // target position in normalized device coordinates
+                    // (-1 to +1) for both components
+                    targetOnScreen.x = 0;
+                    targetOnScreen.y = 0;
 
-                rayCaster.setFromCamera(targetOnScreen, camera);
-                var intersects = rayCaster.intersectObject(mesh);
+                    rayCaster.setFromCamera(targetOnScreen, camera);
+                    var intersects = rayCaster.intersectObject(baseMesh);
 
-                if (intersects.length > 0)
-                    return intersects[0];
-                else
-                    return null;
-            };
-
-            /**
-             * Get first intersection of terrain and the line from camera to controls target.
-             * It is done by raycasting center of screen from camera position.
-             *
-             * @returns {Object} intersection
-             */
-            Map.getHeightAtPosition = function (x, y) {
-                // var ix = Map.bisectX(x, worldData);
-                // var iy = Map.bisectY(y, ix, worldData);
-
-                // return worldData[(ix * worldDataWidth) + iy + 2]
-            };
-
-            /**
-             * UNUSED
-             * Find index for x in hay, such that x is closest to needleX.
-             * We use bisection for a faster search.
-             * @param {float} needleX
-             * @param {Array} hay Positions array in the form { x0, y0, z0, ...15 other values..., x0, y1, z1...}.
-             * @returns {int} ix Index of x, such that x is closest to needleX.
-             */
-            Map.bisectX = function (needleX, hay) {
-                var il = 0,
-                    ir = hay.length / 18,
-                    ix;
-
-                while (il != ir) {
-                    ix = (il + ir) / 2;
-
-                    if (hay[ix * 18] < needleX)
-                        il = ix;
+                    if (intersects.length > 0)
+                        return intersects[0];
                     else
-                        ir = ix;
-                }
+                        return null;
+                },
 
-                return ix;
-            }
+                /**
+                 * Get first intersection of terrain and the line from camera to controls target.
+                 * It is done by raycasting center of screen from camera position.
+                 *
+                 * @return {Object} intersection
+                 */
+                getHeightAtPosition: function (x, y) {
+                    // var ix = World.bisectX(x, worldData);
+                    // var iy = World.bisectY(y, ix, worldData);
 
-            Map.buildQtree = function (x, y, w, d) {
-                var qt = QuadTree(x, y, w, d, { maxchildren: 4 });
+                    // return worldData[(ix * worldDataWidth) + iy + 2]
+                },
 
-                for (var ix = x; ix < x + w; ix += 1000) {
-                    for (var iy = y; iy < y + d; iy += 1000) {
-                        qt.put({ x: ix, y: iy, w: 999.99, h: 999.99 });
-                    }
-                }
+                /**
+                 * UNUSED
+                 * Find index for x in hay, such that x is closest to needleX.
+                 * We use bisection for a faster search.
+                 * @param {float} needleX
+                 * @param {Array} hay Positions array in the form { x0, y0, z0, ...15 other values..., x0, y1, z1...}.
+                 * @return {int} ix Index of x, such that x is closest to needleX.
+                 */
+                bisectX: function (needleX, hay) {
+                    var il = 0,
+                        ir = hay.length / 18,
+                        ix;
 
-                return qt;
-            };
-            Map.qt = Map.buildQtree(xOffset, yOffset, worldWidth, worldDepth);//374000, 31000, 256000, 256000);//
+                    while (il != ir) {
+                        ix = (il + ir) / 2;
 
-            Map.searchQtree = function (qt, x, y, wh) {
-                // For smaller areas than 1kx1k use default get method
-                if (wh <= 1000) {
-                    var correctObj = null;
-                    qt.get({ x: x, y: y, w: wh, h: wh }, function (obj) {
-                        if (obj.x <= x && x < obj.x + 1000 &&
-                            obj.y <= y && y < obj.y + 1000) {
-                            // Save result
-                            correctObj = obj;
-                            // Finish iteration
-                            return false;
-                        } else {
-                            // Continue  iteration
-                            return true;
-                        }
-                    });
-                    return correctObj;
-                }
-
-                // For larger areas use recursive search on root node
-                var root = qt.root;
-
-                // Sanity check if searched location is in the qtree
-                if (x < root.x ||
-                    y < root.y ||
-                    root.x + root.w < x ||
-                    root.y + root.h < y) {
-                    return null;
-                }
-
-                var searchQtreeRecursive = function (n, x, y, wh) {
-                    if (n.w / 2 > wh) {
-                        // Select node for recursion
-                        var w2 = n.w / 2,
-                            h2 = n.h / 2;
-
-                        // right top
-                        if (n.n.length > 3 && (n.x + w2) <= x && (n.y + h2) <= y)
-                            return searchQtreeRecursive(n.n[3], x, y, wh);
-                        // left top
-                        else if (n.n.length > 2 && x < (n.x + w2) && (n.y + h2) <= y)
-                            return searchQtreeRecursive(n.n[2], x, y, wh);
-                        // right bottom
-                        else if (n.n.length > 1 && (n.x + w2) <= x && y < (n.y + h2))
-                            return searchQtreeRecursive(n.n[1], x, y, wh);
-                        // left bottom
-                        else if (n.n.length > 0)
-                            return searchQtreeRecursive(n.n[0], x, y, wh);
+                        if (hay[ix * 18] < needleX)
+                            il = ix;
                         else
-                            throw new ReferenceError('Map.searchQtree: recursion error.');
-
-                        // If no result was found on the lower levels, return this node.
-                        //return nr || n;
-                    } else if (n.w / 2 < wh && wh <= n.w) {
-                        // Stop recursion
-                        return n;
-                    } else {
-                        throw new ReferenceError('Map.searchQtree: recursion finished in a wrong node.');
+                            ir = ix;
                     }
-                };
 
-                return searchQtreeRecursive(root, x, y, wh);
+                    return ix;
+                },
+
+                buildQtree: function (x, y, w, d) {
+                    var qt = QuadTree(x, y, w, d, { maxchildren: 4 });
+
+                    for (var ix = x; ix < x + w; ix += 1000) {
+                        for (var iy = y; iy < y + d; iy += 1000) {
+                            qt.put({ x: ix, y: iy, w: 999.99, h: 999.99 });
+                        }
+                    }
+
+                    return qt;
+                },
+
+                searchQtree: function (x, y, wh) {
+                    // For smaller areas than 1kx1k use default get method
+                    if (wh <= 1000) {
+                        var correctObj = null;
+                        World.qt.get({ x: x, y: y, w: wh, h: wh }, function (obj) {
+                            if (obj.x <= x && x < obj.x + 1000 &&
+                                obj.y <= y && y < obj.y + 1000) {
+                                // Save result
+                                correctObj = obj;
+                                // Finish iteration
+                                return false;
+                            } else {
+                                // Continue  iteration
+                                return true;
+                            }
+                        });
+                        return correctObj;
+                    }
+
+                    // For larger areas use recursive search on root node
+                    var root = World.qt.root;
+
+                    // Sanity check if searched location is in the qtree
+                    if (x < root.x ||
+                        y < root.y ||
+                        root.x + root.w < x ||
+                        root.y + root.h < y) {
+                        return null;
+                    }
+
+                    var searchQtreeRecursive = function (n, x, y, wh) {
+                        if (n.w / 2 >= wh) {
+                            // Select node for recursion
+                            var w2 = n.w / 2,
+                                h2 = n.h / 2;
+
+                            // right top
+                            if (n.n.length > 3 && (n.x + w2) <= x && (n.y + h2) <= y)
+                                return searchQtreeRecursive(n.n[3], x, y, wh);
+                            // left top
+                            else if (n.n.length > 2 && x < (n.x + w2) && (n.y + h2) <= y)
+                                return searchQtreeRecursive(n.n[2], x, y, wh);
+                            // right bottom
+                            else if (n.n.length > 1 && (n.x + w2) <= x && y < (n.y + h2))
+                                return searchQtreeRecursive(n.n[1], x, y, wh);
+                            // left bottom
+                            else if (n.n.length > 0)
+                                return searchQtreeRecursive(n.n[0], x, y, wh);
+                            else
+                                throw new ReferenceError('World.searchQtree: recursion error.');
+
+                            // If no result was found on the lower levels, return this node.
+                            //return nr || n;
+                        } else if (n.w / 2 < wh && wh <= n.w) {
+                            // Stop recursion
+                            return n;
+                        } else {
+                            throw new ReferenceError('World.searchQtree: recursion finished in a wrong node.\nx: ' + x + ', y: ' + y + ', wh:' + wh);
+                        }
+                    };
+
+                    return searchQtreeRecursive(root, x, y, wh);
+                },
+
+                reset: function () {
+                    scene.add(baseMesh);
+                    scene.remove(detailedMesh);
+                },
+
+                init: function () {
+                    World.qt = World.buildQtree(xOffset, yOffset, worldWidth, worldDepth);//374000, 31000, 256000, 256000);//
+                }
             };
+
+            World.init();
 
             //
 
@@ -584,29 +980,63 @@
 
             var LOD = {
                 updateInProgress: false,
-                level: 6
-            };
+                level: 6,
 
-            /**
-             * Checks if camera is in the position to load new data.
-             */
-            LOD.update = function () {
-                if (camera.position.z < 6000 && !LOD.updateInProgress) {
-                    LOD.updateInProgress = true;
+                /**
+                 * Loads new data if camera is in the right position.
+                 */
+                update: function () {
+                    if (!LOD.updateInProgress) {
+                        LOD.updateInProgress = true;
+                        var nextLevel;
 
-                    intersection = Map.getViewIntersection();
+                        //intersection = World.getViewIntersection();
 
-                    if (intersection.distance < 3000)
-                        LOD.level = 10;
-                    else if (intersection.distance < 6000)
-                        LOD.level = 8;
-                    else
-                        LOD.level = 6;
+                        if (camera.position.z < 3000)
+                            nextLevel = 8;
+                        else
+                            nextLevel = 6;
 
-                    var x = Math.floor(intersection.point.x / 1000),
-                        y = Math.floor(intersection.point.y / 1000);
+                        if (nextLevel > LOD.level) {
+                            LOD.level = nextLevel;
+
+                            var x = controls.target.x,//intersection.point.x,
+                                y = controls.target.y;//intersection.point.y;
+
+                            var levelDim = LOD.getLevelDimension(LOD.level);
+
+                            var qtNode = World.searchQtree(x, y, levelDim);
+
+                            Data.loadData(LOD.level, qtNode.x, qtNode.y);
+                        } else if (nextLevel < LOD.level) {
+                            LOD.level = nextLevel;
+
+                            World.reset();
+
+                            LOD.updateInProgress = false;
+                        } else {
+                            LOD.updateInProgress = false;
+                        }
+
+                    }
+                },
+
+                /**
+                 * Level dimensions follow this rule:
+                 * Level 10: 1000
+                 * Level 9: 2000
+                 * Level 8: 4000
+                 * ...
+                 * @param   {int} level
+                 * @return  {int} dimension
+                 */
+                getLevelDimension: function (level) {
+                    var dim = 1000;
+                    for (var i = 0; i < (10 - level); i++)
+                        dim *= 2;
+                    return dim;
                 }
-            }
+            };
 
 		</script>
 	</body>

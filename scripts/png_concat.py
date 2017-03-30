@@ -25,7 +25,7 @@ blank_image = Image.new("RGB", (image_size * x_range, image_size * y_range))
 
 for (x, x_image) in zip(range(x0, x1 + 1), range(0, image_size * x_range, image_size)):
     for (y, y_image) in zip(range(y0, y1 + 1), range(image_size * (y_range - 1), -1, -image_size)):
-        image = Image.open('../data/%s/%s_%s.png' % (z, x, y))
+        image = Image.open('../../data/%s/%s_%s.png' % (z, x, y))
 
         blank_image.paste(image, (x_image, y_image))
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Global limits x: 374 - 623, y: 31 - 194
+# Global limits x: 374 - 623: 250, y: 31 - 194: 164
 for ((x=406;x<=452;x++));
 do
     for ((y=85;y<=122;y++));

@@ -256,7 +256,7 @@
                     }
                 }
 
-                // console.log('basic mesh', performance.now() - start);
+                console.log('basic mesh', performance.now() - start);
 
                 geometry.setIndex( new THREE.BufferAttribute( indices, 1 ) );
                 geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
@@ -368,8 +368,6 @@
                         level: level,
                         worldWidth: LOD.getLevelDimension(level)
                     };
-
-                    // console.log(baseLevel, nextLevel);
 
 
                     var squares = baseLevel.dataWidth - 1 + nextLevel.dataWidth - 1;
@@ -694,7 +692,7 @@
                             ipnc += 18;
                         }
                     }
-                    // console.log(performance.now() - start);
+                    console.log('detailed mesh: ', performance.now() - start);
 
                     geometry.setIndex( new THREE.BufferAttribute( indices, 1 ) );
                     geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
@@ -715,7 +713,7 @@
                     Data.img = null;
 
                     LOD.updateInProgress = false;
-                    // console.log('LOD update stop');
+                    console.log('LOD update stop');
                 },
 
                 getHeights: function (image) {
@@ -1008,7 +1006,7 @@
                             nextLevel = 6;
 
                         if (nextLevel > LOD.level) {
-                            // console.log('LOD update');
+                            console.log('LOD update');
                             LOD.level = nextLevel;
 
                             var x = controls.target.x,//intersection.point.x,

@@ -143,6 +143,7 @@
                 var gmin = 0, gmax = 255;
                 var bmin = 0, bmax = 255;
 
+                var start = performance.now();
                 for (var w = 0, ipnc = 0; w < dataWidth - 1; w++) {
                     for (var d = 0; d < dataDepth - 1; d++) {
                         var ih = w * dataWidth + d;
@@ -255,6 +256,8 @@
                     }
                 }
 
+                // console.log('basic mesh', performance.now() - start);
+
                 geometry.setIndex( new THREE.BufferAttribute( indices, 1 ) );
                 geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
                 geometry.addAttribute( 'normal', new THREE.BufferAttribute( normals, 3, true ) );
@@ -366,6 +369,8 @@
                         worldWidth: LOD.getLevelDimension(level)
                     };
 
+                    // console.log(baseLevel, nextLevel);
+
 
                     var squares = baseLevel.dataWidth - 1 + nextLevel.dataWidth - 1;
 
@@ -406,6 +411,7 @@
 
                     var ipnc = 0;
 
+                    var start = performance.now();
                     for (var w = 0; w < dataWidth - 1; w++) {
                         for (var d = 0; d < dataDepth - 1; d++) {
                             var ih = w * dataWidth + d;
@@ -423,15 +429,19 @@
                             var dy = yOffset + (dataWidth - (w + 1))            * widthScale;
                             var dz =               (heights[ ih + dataWidth + 1 ])  ;//* heightScale;
 
-                            if (nextLevel.xOffset <= ax && ax <= nextLevel.xOffset + nextLevel.worldWidth &&
-                                nextLevel.yOffset <= ay && ay <= nextLevel.yOffset + nextLevel.worldWidth &&
-                                nextLevel.xOffset <= bx && bx <= nextLevel.xOffset + nextLevel.worldWidth &&
-                                nextLevel.yOffset <= by && by <= nextLevel.yOffset + nextLevel.worldWidth &&
-                                nextLevel.xOffset <= cx && cx <= nextLevel.xOffset + nextLevel.worldWidth &&
-                                nextLevel.yOffset <= cy && cy <= nextLevel.yOffset + nextLevel.worldWidth &&
-                                nextLevel.xOffset <= dx && dx <= nextLevel.xOffset + nextLevel.worldWidth &&
-                                nextLevel.yOffset <= dy && dy <= nextLevel.yOffset + nextLevel.worldWidth)
-                                continue;
+                            if (nextLevel.xOffset < ax && ax < nextLevel.xOffset + nextLevel.worldWidth &&
+                                nextLevel.yOffset < ay && ay < nextLevel.yOffset + nextLevel.worldWidth &&
+                                nextLevel.xOffset < bx && bx < nextLevel.xOffset + nextLevel.worldWidth &&
+                                nextLevel.yOffset < by && by < nextLevel.yOffset + nextLevel.worldWidth &&
+                                nextLevel.xOffset < cx && cx < nextLevel.xOffset + nextLevel.worldWidth &&
+                                nextLevel.yOffset < cy && cy < nextLevel.yOffset + nextLevel.worldWidth &&
+                                nextLevel.xOffset < dx && dx < nextLevel.xOffset + nextLevel.worldWidth &&
+                                nextLevel.yOffset < dy && dy < nextLevel.yOffset + nextLevel.worldWidth) {
+
+                                    d + nextLevel.dataWidth - 1;
+                                    continue;
+                            }
+
 
                             // First triangle - mind the triangles orientation
                             positions[ ipnc ]     = ax;
@@ -569,8 +579,6 @@
                     worldWidth = nextLevel.worldWidth;
                     worldDepth = worldWidth;
                     heights = nextLevel.heights;
-                    xOffset = nextLevel.xOffset;
-                    yOffset = nextLevel.yOffset;
 
                     widthScale = worldWidth / dataWidth;
                     depthScale = worldDepth / dataDepth;
@@ -579,17 +587,17 @@
                         for (d = 0; d < dataDepth - 1; d++) {
                             var ih = w * dataWidth + d;
 
-                            var ax = xOffset + d                                * depthScale;
-                            var ay = yOffset + (dataWidth - w)                  * widthScale;
+                            var ax = nextLevel.xOffset + d                                * depthScale;
+                            var ay = nextLevel.yOffset + (dataWidth - w)                  * widthScale;
                             var az =               (heights[ ih ])                  ;//* heightScale;
-                            var bx = xOffset + d                                * depthScale;
-                            var by = yOffset + (dataWidth - (w + 1))            * widthScale;
+                            var bx = nextLevel.xOffset + d                                * depthScale;
+                            var by = nextLevel.yOffset + (dataWidth - (w + 1))            * widthScale;
                             var bz =         (heights[ ih + dataWidth ])                    ;//* heightScale;
-                            var cx = xOffset + (d + 1)                          * depthScale;
-                            var cy = yOffset + (dataWidth - w)                  * widthScale;
+                            var cx = nextLevel.xOffset + (d + 1)                          * depthScale;
+                            var cy = nextLevel.yOffset + (dataWidth - w)                  * widthScale;
                             var cz =               (heights[ ih + 1 ])              ;//* heightScale;
-                            var dx = xOffset + (d + 1)                          * depthScale;
-                            var dy = yOffset + (dataWidth - (w + 1))            * widthScale;
+                            var dx = nextLevel.xOffset + (d + 1)                          * depthScale;
+                            var dy = nextLevel.yOffset + (dataWidth - (w + 1))            * widthScale;
                             var dz =               (heights[ ih + dataWidth + 1 ])  ;//* heightScale;
 
                             // First triangle - mind the triangles orientation
@@ -686,6 +694,7 @@
                             ipnc += 18;
                         }
                     }
+                    // console.log(performance.now() - start);
 
                     geometry.setIndex( new THREE.BufferAttribute( indices, 1 ) );
                     geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
@@ -706,6 +715,7 @@
                     Data.img = null;
 
                     LOD.updateInProgress = false;
+                    // console.log('LOD update stop');
                 },
 
                 getHeights: function (image) {
@@ -998,6 +1008,7 @@
                             nextLevel = 6;
 
                         if (nextLevel > LOD.level) {
+                            // console.log('LOD update');
                             LOD.level = nextLevel;
 
                             var x = controls.target.x,//intersection.point.x,

@@ -47,6 +47,7 @@
 		<script src="js/libs/qtree.js"></script>
 
 		<script>
+            'use strict';
 
 			if ( ! Detector.webgl ) {
 
@@ -58,9 +59,9 @@
 			var container = document.getElementById( 'container' ),
                 stats;
 
-			var camera, controls, scene, renderer, rayCaster;
+			var camera, controls, scene, renderer, rayCaster, targetOnScreen;
 
-			var triangles, baseMesh, detailedMesh, texture, intersection, worldData;
+			var triangles, baseMesh, detailedMesh, detailedGeometry, material, texture, intersection, worldData;
 
             var xOffset = 412000, yOffset = 98000;
 			var worldWidth = 16000, worldDepth = 16000,
@@ -262,9 +263,16 @@
                 geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
                 geometry.addAttribute( 'normal', new THREE.BufferAttribute( normals, 3, true ) );
                 geometry.addAttribute( 'color', new THREE.BufferAttribute( colors, 3, true ) );
+
+                // Reset memory
+                indices = null;
+                positions = null;
+                normals = null;
+                colors = null;
+
                 //geometry.computeBoundingSphere();
 
-                var material = new THREE.MeshLambertMaterial( {
+                material = new THREE.MeshLambertMaterial( {
                     //color: 0xaaaaaa, specular: 0xffffff, shininess: 250, side: THREE.DoubleSide ,
                     vertexColors: THREE.VertexColors, shading: THREE.SmoothShading
                 } );
@@ -330,6 +338,12 @@
                 hmin: 3000.0,
                 hmax: -1,
                 baseLevel: null,
+                nextLevel: {
+                    indices: null,
+                    positions: null,
+                    normals: null,
+                    colors: null
+                },
 
                 onInitialDataLoad: function () {
                     var heights = Data.getHeights(Data.img);
@@ -375,14 +389,20 @@
 
                     // Base level
                     var triangles = squares * squares * 2;
-                    var geometry = new THREE.BufferGeometry();
-                    var indices = new Uint32Array( triangles * 3 );
-                    for ( var i = 0; i < indices.length; i ++ ) {
-                        indices[ i ] = i;
+                    detailedGeometry = new THREE.BufferGeometry();
+                    if (!Data.nextLevel.indices) {
+                        Data.nextLevel.indices = new Uint32Array( triangles * 3 );
+                        for ( var i = 0; i < Data.nextLevel.indices.length; i ++ ) {
+                            Data.nextLevel.indices[ i ] = i;
+                        }
                     }
-                    var positions = new Float32Array( triangles * 3 * 3 );
-                    var normals = new Int16Array( triangles * 3 * 3 );
-                    var colors = new Uint8Array( triangles * 3 * 3 );
+                    if (!Data.nextLevel.positions)
+                        Data.nextLevel.positions = new Float32Array( triangles * 3 * 3 );
+                    if (!Data.nextLevel.normals)
+                        Data.nextLevel.normals = new Int16Array( triangles * 3 * 3 );
+                    if (!Data.nextLevel.colors)
+                        Data.nextLevel.colors = new Uint8Array( triangles * 3 * 3 );
+
                     var color = new THREE.Color();
                     //var n = 800, n2 = n/2;  // triangles spread in the cube
                     //var d = 12, d2 = d/2;   // individual triangle size
@@ -442,25 +462,25 @@
 
 
                             // First triangle - mind the triangles orientation
-                            positions[ ipnc ]     = ax;
-                            positions[ ipnc + 1 ] = ay;
-                            positions[ ipnc + 2 ] = az;
-                            positions[ ipnc + 3 ] = bx;
-                            positions[ ipnc + 4 ] = by;
-                            positions[ ipnc + 5 ] = bz;
-                            positions[ ipnc + 6 ] = cx;
-                            positions[ ipnc + 7 ] = cy;
-                            positions[ ipnc + 8 ] = cz;
+                            Data.nextLevel.positions[ ipnc ]     = ax;
+                            Data.nextLevel.positions[ ipnc + 1 ] = ay;
+                            Data.nextLevel.positions[ ipnc + 2 ] = az;
+                            Data.nextLevel.positions[ ipnc + 3 ] = bx;
+                            Data.nextLevel.positions[ ipnc + 4 ] = by;
+                            Data.nextLevel.positions[ ipnc + 5 ] = bz;
+                            Data.nextLevel.positions[ ipnc + 6 ] = cx;
+                            Data.nextLevel.positions[ ipnc + 7 ] = cy;
+                            Data.nextLevel.positions[ ipnc + 8 ] = cz;
                             // Second triangle
-                            positions[ ipnc + 9 ]  = bx;
-                            positions[ ipnc + 10 ] = by;
-                            positions[ ipnc + 11 ] = bz;
-                            positions[ ipnc + 12 ] = dx;
-                            positions[ ipnc + 13 ] = dy;
-                            positions[ ipnc + 14 ] = dz;
-                            positions[ ipnc + 15 ] = cx;
-                            positions[ ipnc + 16 ] = cy;
-                            positions[ ipnc + 17 ] = cz;
+                            Data.nextLevel.positions[ ipnc + 9 ]  = bx;
+                            Data.nextLevel.positions[ ipnc + 10 ] = by;
+                            Data.nextLevel.positions[ ipnc + 11 ] = bz;
+                            Data.nextLevel.positions[ ipnc + 12 ] = dx;
+                            Data.nextLevel.positions[ ipnc + 13 ] = dy;
+                            Data.nextLevel.positions[ ipnc + 14 ] = dz;
+                            Data.nextLevel.positions[ ipnc + 15 ] = cx;
+                            Data.nextLevel.positions[ ipnc + 16 ] = cy;
+                            Data.nextLevel.positions[ ipnc + 17 ] = cz;
 
                             // flat face normals
                             pA.set( ax, ay, az );
@@ -475,15 +495,15 @@
                             var nx0 = ab.x;
                             var ny0 = ab.y;
                             var nz0 = ab.z;
-                            normals[ ipnc ]     = nx0 * 32767;
-                            normals[ ipnc + 1 ] = ny0 * 32767;
-                            normals[ ipnc + 2 ] = nz0 * 32767;
-                            normals[ ipnc + 3 ] = nx0 * 32767;
-                            normals[ ipnc + 4 ] = ny0 * 32767;
-                            normals[ ipnc + 5 ] = nz0 * 32767;
-                            normals[ ipnc + 6 ] = nx0 * 32767;
-                            normals[ ipnc + 7 ] = ny0 * 32767;
-                            normals[ ipnc + 8 ] = nz0 * 32767;
+                            Data.nextLevel.normals[ ipnc ]     = nx0 * 32767;
+                            Data.nextLevel.normals[ ipnc + 1 ] = ny0 * 32767;
+                            Data.nextLevel.normals[ ipnc + 2 ] = nz0 * 32767;
+                            Data.nextLevel.normals[ ipnc + 3 ] = nx0 * 32767;
+                            Data.nextLevel.normals[ ipnc + 4 ] = ny0 * 32767;
+                            Data.nextLevel.normals[ ipnc + 5 ] = nz0 * 32767;
+                            Data.nextLevel.normals[ ipnc + 6 ] = nx0 * 32767;
+                            Data.nextLevel.normals[ ipnc + 7 ] = ny0 * 32767;
+                            Data.nextLevel.normals[ ipnc + 8 ] = nz0 * 32767;
                             // Second triangle
                             db.subVectors( pD, pB );
                             cb.subVectors( pC, pB );
@@ -492,15 +512,15 @@
                             var nx1 = cb.x;
                             var ny1 = cb.y;
                             var nz1 = cb.z;
-                            normals[ ipnc + 9 ]  = nx1 * 32767;
-                            normals[ ipnc + 10 ] = ny1 * 32767;
-                            normals[ ipnc + 11 ] = nz1 * 32767;
-                            normals[ ipnc + 12 ] = nx1 * 32767;
-                            normals[ ipnc + 13 ] = ny1 * 32767;
-                            normals[ ipnc + 14 ] = nz1 * 32767;
-                            normals[ ipnc + 15 ] = nx1 * 32767;
-                            normals[ ipnc + 16 ] = ny1 * 32767;
-                            normals[ ipnc + 17 ] = nz1 * 32767;
+                            Data.nextLevel.normals[ ipnc + 9 ]  = nx1 * 32767;
+                            Data.nextLevel.normals[ ipnc + 10 ] = ny1 * 32767;
+                            Data.nextLevel.normals[ ipnc + 11 ] = nz1 * 32767;
+                            Data.nextLevel.normals[ ipnc + 12 ] = nx1 * 32767;
+                            Data.nextLevel.normals[ ipnc + 13 ] = ny1 * 32767;
+                            Data.nextLevel.normals[ ipnc + 14 ] = nz1 * 32767;
+                            Data.nextLevel.normals[ ipnc + 15 ] = nx1 * 32767;
+                            Data.nextLevel.normals[ ipnc + 16 ] = ny1 * 32767;
+                            Data.nextLevel.normals[ ipnc + 17 ] = nz1 * 32767;
 
                             // colors
                             // (k*low.red + (1-k)*hi.red,
@@ -512,65 +532,29 @@
                             var ck = (cz - hmin) / (hmax - hmin);
                             var dk = (dz - hmin) / (hmax - hmin);
                             // First triangle
-                            colors[ ipnc ]     = ((1 - ak) * rmin) + (ak * rmax);
-                            colors[ ipnc + 1 ] = ((1 - ak) * gmin) + (ak * gmax);
-                            colors[ ipnc + 2 ] = ((1 - ak) * bmin) + (ak * bmax);
-                            colors[ ipnc + 3 ] = ((1 - bk) * rmin) + (bk * rmax);
-                            colors[ ipnc + 4 ] = ((1 - bk) * gmin) + (bk * gmax);
-                            colors[ ipnc + 5 ] = ((1 - bk) * bmin) + (bk * bmax);
-                            colors[ ipnc + 6 ] = ((1 - ck) * rmin) + (ck * rmax);
-                            colors[ ipnc + 7 ] = ((1 - ck) * gmin) + (ck * gmax);
-                            colors[ ipnc + 8 ] = ((1 - ck) * bmin) + (ck * bmax);
+                            Data.nextLevel.colors[ ipnc ]     = ((1 - ak) * rmin) + (ak * rmax);
+                            Data.nextLevel.colors[ ipnc + 1 ] = ((1 - ak) * gmin) + (ak * gmax);
+                            Data.nextLevel.colors[ ipnc + 2 ] = ((1 - ak) * bmin) + (ak * bmax);
+                            Data.nextLevel.colors[ ipnc + 3 ] = ((1 - bk) * rmin) + (bk * rmax);
+                            Data.nextLevel.colors[ ipnc + 4 ] = ((1 - bk) * gmin) + (bk * gmax);
+                            Data.nextLevel.colors[ ipnc + 5 ] = ((1 - bk) * bmin) + (bk * bmax);
+                            Data.nextLevel.colors[ ipnc + 6 ] = ((1 - ck) * rmin) + (ck * rmax);
+                            Data.nextLevel.colors[ ipnc + 7 ] = ((1 - ck) * gmin) + (ck * gmax);
+                            Data.nextLevel.colors[ ipnc + 8 ] = ((1 - ck) * bmin) + (ck * bmax);
                             // Second triangle
-                            colors[ ipnc + 9 ]  = ((1 - ck) * rmin) + (ck * rmax);
-                            colors[ ipnc + 10 ] = ((1 - ck) * gmin) + (ck * gmax);
-                            colors[ ipnc + 11 ] = ((1 - ck) * bmin) + (ck * bmax);
-                            colors[ ipnc + 12 ] = ((1 - bk) * rmin) + (bk * rmax);
-                            colors[ ipnc + 13 ] = ((1 - bk) * gmin) + (bk * gmax);
-                            colors[ ipnc + 14 ] = ((1 - bk) * bmin) + (bk * bmax);
-                            colors[ ipnc + 15 ] = ((1 - dk) * rmin) + (dk * rmax);
-                            colors[ ipnc + 16 ] = ((1 - dk) * gmin) + (dk * gmax);
-                            colors[ ipnc + 17 ] = ((1 - dk) * bmin) + (dk * bmax);
+                            Data.nextLevel.colors[ ipnc + 9 ]  = ((1 - ck) * rmin) + (ck * rmax);
+                            Data.nextLevel.colors[ ipnc + 10 ] = ((1 - ck) * gmin) + (ck * gmax);
+                            Data.nextLevel.colors[ ipnc + 11 ] = ((1 - ck) * bmin) + (ck * bmax);
+                            Data.nextLevel.colors[ ipnc + 12 ] = ((1 - bk) * rmin) + (bk * rmax);
+                            Data.nextLevel.colors[ ipnc + 13 ] = ((1 - bk) * gmin) + (bk * gmax);
+                            Data.nextLevel.colors[ ipnc + 14 ] = ((1 - bk) * bmin) + (bk * bmax);
+                            Data.nextLevel.colors[ ipnc + 15 ] = ((1 - dk) * rmin) + (dk * rmax);
+                            Data.nextLevel.colors[ ipnc + 16 ] = ((1 - dk) * gmin) + (dk * gmax);
+                            Data.nextLevel.colors[ ipnc + 17 ] = ((1 - dk) * bmin) + (dk * bmax);
 
                             ipnc += 18;
                         }
                     }
-
-                    // geometry.setIndex( new THREE.BufferAttribute( indices, 1 ) );
-                    // geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
-                    // geometry.addAttribute( 'normal', new THREE.BufferAttribute( normals, 3, true ) );
-                    // geometry.addAttribute( 'color', new THREE.BufferAttribute( colors, 3, true ) );
-                    // //geometry.computeBoundingSphere();
-
-                    // var material = new THREE.MeshLambertMaterial( {
-                    //     //color: 0xaaaaaa, specular: 0xffffff, shininess: 250, side: THREE.DoubleSide ,
-                    //     vertexColors: THREE.VertexColors, shading: THREE.SmoothShading
-                    // } );
-                    // mesh = new THREE.Mesh( geometry, material );
-                    // scene.add( mesh );
-
-
-
-
-                    // var triangles = (dataWidth - 1) * (dataDepth - 1) * 2;
-                    // var geometry = new THREE.BufferGeometry();
-                    // var indices = new Uint32Array( triangles * 3 );
-                    // for ( var i = 0; i < indices.length; i ++ ) {
-                    //     indices[ i ] = i;
-                    // }
-                    // var positions = new Float32Array( triangles * 3 * 3 );
-                    // var normals = new Int16Array( triangles * 3 * 3 );
-                    // var colors = new Uint8Array( triangles * 3 * 3 );
-                    // var color = new THREE.Color();
-                    // //var n = 800, n2 = n/2;  // triangles spread in the cube
-                    // //var d = 12, d2 = d/2;   // individual triangle size
-                    // var pA = new THREE.Vector3();
-                    // var pB = new THREE.Vector3();
-                    // var pC = new THREE.Vector3();
-                    // var pD = new THREE.Vector3();
-                    // var cb = new THREE.Vector3();
-                    // var ab = new THREE.Vector3();
-                    // var db = new THREE.Vector3();
 
                     dataWidth = nextLevel.dataWidth;
                     dataDepth = dataWidth;
@@ -599,27 +583,27 @@
                             var dz =               (heights[ ih + dataWidth + 1 ])  ;//* heightScale;
 
                             // First triangle - mind the triangles orientation
-                            positions[ ipnc ]     = ax;
-                            positions[ ipnc + 1 ] = ay;
-                            positions[ ipnc + 2 ] = az;
-                            positions[ ipnc + 3 ] = bx;
-                            positions[ ipnc + 4 ] = by;
-                            positions[ ipnc + 5 ] = bz;
-                            positions[ ipnc + 6 ] = cx;
-                            positions[ ipnc + 7 ] = cy;
-                            positions[ ipnc + 8 ] = cz;
+                            Data.nextLevel.positions[ ipnc ]     = ax;
+                            Data.nextLevel.positions[ ipnc + 1 ] = ay;
+                            Data.nextLevel.positions[ ipnc + 2 ] = az;
+                            Data.nextLevel.positions[ ipnc + 3 ] = bx;
+                            Data.nextLevel.positions[ ipnc + 4 ] = by;
+                            Data.nextLevel.positions[ ipnc + 5 ] = bz;
+                            Data.nextLevel.positions[ ipnc + 6 ] = cx;
+                            Data.nextLevel.positions[ ipnc + 7 ] = cy;
+                            Data.nextLevel.positions[ ipnc + 8 ] = cz;
                             // Second triangle
-                            positions[ ipnc + 9 ]  = bx;
-                            positions[ ipnc + 10 ] = by;
-                            positions[ ipnc + 11 ] = bz;
-                            positions[ ipnc + 12 ] = dx;
-                            positions[ ipnc + 13 ] = dy;
-                            positions[ ipnc + 14 ] = dz;
-                            positions[ ipnc + 15 ] = cx;
-                            positions[ ipnc + 16 ] = cy;
-                            positions[ ipnc + 17 ] = cz;
+                            Data.nextLevel.positions[ ipnc + 9 ]  = bx;
+                            Data.nextLevel.positions[ ipnc + 10 ] = by;
+                            Data.nextLevel.positions[ ipnc + 11 ] = bz;
+                            Data.nextLevel.positions[ ipnc + 12 ] = dx;
+                            Data.nextLevel.positions[ ipnc + 13 ] = dy;
+                            Data.nextLevel.positions[ ipnc + 14 ] = dz;
+                            Data.nextLevel.positions[ ipnc + 15 ] = cx;
+                            Data.nextLevel.positions[ ipnc + 16 ] = cy;
+                            Data.nextLevel.positions[ ipnc + 17 ] = cz;
 
-                            // flat face normals
+                            // flat face Data.nextLevel.normals
                             pA.set( ax, ay, az );
                             pB.set( bx, by, bz );
                             pC.set( cx, cy, cz );
@@ -632,15 +616,15 @@
                             var nx0 = ab.x;
                             var ny0 = ab.y;
                             var nz0 = ab.z;
-                            normals[ ipnc ]     = nx0 * 32767;
-                            normals[ ipnc + 1 ] = ny0 * 32767;
-                            normals[ ipnc + 2 ] = nz0 * 32767;
-                            normals[ ipnc + 3 ] = nx0 * 32767;
-                            normals[ ipnc + 4 ] = ny0 * 32767;
-                            normals[ ipnc + 5 ] = nz0 * 32767;
-                            normals[ ipnc + 6 ] = nx0 * 32767;
-                            normals[ ipnc + 7 ] = ny0 * 32767;
-                            normals[ ipnc + 8 ] = nz0 * 32767;
+                            Data.nextLevel.normals[ ipnc ]     = nx0 * 32767;
+                            Data.nextLevel.normals[ ipnc + 1 ] = ny0 * 32767;
+                            Data.nextLevel.normals[ ipnc + 2 ] = nz0 * 32767;
+                            Data.nextLevel.normals[ ipnc + 3 ] = nx0 * 32767;
+                            Data.nextLevel.normals[ ipnc + 4 ] = ny0 * 32767;
+                            Data.nextLevel.normals[ ipnc + 5 ] = nz0 * 32767;
+                            Data.nextLevel.normals[ ipnc + 6 ] = nx0 * 32767;
+                            Data.nextLevel.normals[ ipnc + 7 ] = ny0 * 32767;
+                            Data.nextLevel.normals[ ipnc + 8 ] = nz0 * 32767;
                             // Second triangle
                             db.subVectors( pD, pB );
                             cb.subVectors( pC, pB );
@@ -649,17 +633,17 @@
                             var nx1 = cb.x;
                             var ny1 = cb.y;
                             var nz1 = cb.z;
-                            normals[ ipnc + 9 ]  = nx1 * 32767;
-                            normals[ ipnc + 10 ] = ny1 * 32767;
-                            normals[ ipnc + 11 ] = nz1 * 32767;
-                            normals[ ipnc + 12 ] = nx1 * 32767;
-                            normals[ ipnc + 13 ] = ny1 * 32767;
-                            normals[ ipnc + 14 ] = nz1 * 32767;
-                            normals[ ipnc + 15 ] = nx1 * 32767;
-                            normals[ ipnc + 16 ] = ny1 * 32767;
-                            normals[ ipnc + 17 ] = nz1 * 32767;
+                            Data.nextLevel.normals[ ipnc + 9 ]  = nx1 * 32767;
+                            Data.nextLevel.normals[ ipnc + 10 ] = ny1 * 32767;
+                            Data.nextLevel.normals[ ipnc + 11 ] = nz1 * 32767;
+                            Data.nextLevel.normals[ ipnc + 12 ] = nx1 * 32767;
+                            Data.nextLevel.normals[ ipnc + 13 ] = ny1 * 32767;
+                            Data.nextLevel.normals[ ipnc + 14 ] = nz1 * 32767;
+                            Data.nextLevel.normals[ ipnc + 15 ] = nx1 * 32767;
+                            Data.nextLevel.normals[ ipnc + 16 ] = ny1 * 32767;
+                            Data.nextLevel.normals[ ipnc + 17 ] = nz1 * 32767;
 
-                            // colors
+                            // Data.nextLevel.colors
                             // (k*low.red + (1-k)*hi.red,
                             // k*low.green + (1-k)*hi.green,
                             // k*low.blue + (1-k)*hi.blue)
@@ -669,42 +653,44 @@
                             var ck = (cz - hmin) / (hmax - hmin);
                             var dk = (dz - hmin) / (hmax - hmin);
                             // First triangle
-                            colors[ ipnc ]     = ((1 - ak) * rmin) + (ak * rmax);
-                            colors[ ipnc + 1 ] = ((1 - ak) * gmin) + (ak * gmax);
-                            colors[ ipnc + 2 ] = ((1 - ak) * bmin) + (ak * bmax);
-                            colors[ ipnc + 3 ] = ((1 - bk) * rmin) + (bk * rmax);
-                            colors[ ipnc + 4 ] = ((1 - bk) * gmin) + (bk * gmax);
-                            colors[ ipnc + 5 ] = ((1 - bk) * bmin) + (bk * bmax);
-                            colors[ ipnc + 6 ] = ((1 - ck) * rmin) + (ck * rmax);
-                            colors[ ipnc + 7 ] = ((1 - ck) * gmin) + (ck * gmax);
-                            colors[ ipnc + 8 ] = ((1 - ck) * bmin) + (ck * bmax);
+                            Data.nextLevel.colors[ ipnc ]     = ((1 - ak) * rmin) + (ak * rmax);
+                            Data.nextLevel.colors[ ipnc + 1 ] = ((1 - ak) * gmin) + (ak * gmax);
+                            Data.nextLevel.colors[ ipnc + 2 ] = ((1 - ak) * bmin) + (ak * bmax);
+                            Data.nextLevel.colors[ ipnc + 3 ] = ((1 - bk) * rmin) + (bk * rmax);
+                            Data.nextLevel.colors[ ipnc + 4 ] = ((1 - bk) * gmin) + (bk * gmax);
+                            Data.nextLevel.colors[ ipnc + 5 ] = ((1 - bk) * bmin) + (bk * bmax);
+                            Data.nextLevel.colors[ ipnc + 6 ] = ((1 - ck) * rmin) + (ck * rmax);
+                            Data.nextLevel.colors[ ipnc + 7 ] = ((1 - ck) * gmin) + (ck * gmax);
+                            Data.nextLevel.colors[ ipnc + 8 ] = ((1 - ck) * bmin) + (ck * bmax);
                             // Second triangle
-                            colors[ ipnc + 9 ]  = ((1 - ck) * rmin) + (ck * rmax);
-                            colors[ ipnc + 10 ] = ((1 - ck) * gmin) + (ck * gmax);
-                            colors[ ipnc + 11 ] = ((1 - ck) * bmin) + (ck * bmax);
-                            colors[ ipnc + 12 ] = ((1 - bk) * rmin) + (bk * rmax);
-                            colors[ ipnc + 13 ] = ((1 - bk) * gmin) + (bk * gmax);
-                            colors[ ipnc + 14 ] = ((1 - bk) * bmin) + (bk * bmax);
-                            colors[ ipnc + 15 ] = ((1 - dk) * rmin) + (dk * rmax);
-                            colors[ ipnc + 16 ] = ((1 - dk) * gmin) + (dk * gmax);
-                            colors[ ipnc + 17 ] = ((1 - dk) * bmin) + (dk * bmax);
+                            Data.nextLevel.colors[ ipnc + 9 ]  = ((1 - ck) * rmin) + (ck * rmax);
+                            Data.nextLevel.colors[ ipnc + 10 ] = ((1 - ck) * gmin) + (ck * gmax);
+                            Data.nextLevel.colors[ ipnc + 11 ] = ((1 - ck) * bmin) + (ck * bmax);
+                            Data.nextLevel.colors[ ipnc + 12 ] = ((1 - bk) * rmin) + (bk * rmax);
+                            Data.nextLevel.colors[ ipnc + 13 ] = ((1 - bk) * gmin) + (bk * gmax);
+                            Data.nextLevel.colors[ ipnc + 14 ] = ((1 - bk) * bmin) + (bk * bmax);
+                            Data.nextLevel.colors[ ipnc + 15 ] = ((1 - dk) * rmin) + (dk * rmax);
+                            Data.nextLevel.colors[ ipnc + 16 ] = ((1 - dk) * gmin) + (dk * gmax);
+                            Data.nextLevel.colors[ ipnc + 17 ] = ((1 - dk) * bmin) + (dk * bmax);
 
                             ipnc += 18;
                         }
                     }
                     console.log('detailed mesh: ', performance.now() - start);
 
-                    geometry.setIndex( new THREE.BufferAttribute( indices, 1 ) );
-                    geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
-                    geometry.addAttribute( 'normal', new THREE.BufferAttribute( normals, 3, true ) );
-                    geometry.addAttribute( 'color', new THREE.BufferAttribute( colors, 3, true ) );
-                    //geometry.computeBoundingSphere();
+                    detailedGeometry.setIndex( new THREE.BufferAttribute( Data.nextLevel.indices, 1 ) );
+                    detailedGeometry.addAttribute( 'position', new THREE.BufferAttribute( Data.nextLevel.positions, 3 ) );
+                    detailedGeometry.addAttribute( 'normal', new THREE.BufferAttribute( Data.nextLevel.normals, 3, true ) );
+                    detailedGeometry.addAttribute( 'color', new THREE.BufferAttribute( Data.nextLevel.colors, 3, true ) );
 
-                    var material = new THREE.MeshLambertMaterial( {
-                        //color: 0xaaaaaa, specular: 0xffffff, shininess: 250, side: THREE.DoubleSide ,
-                        vertexColors: THREE.VertexColors//, shading: THREE.FlatShading
-                    } );
-                    detailedMesh = new THREE.Mesh( geometry, material );
+                    //detailedGeometry.computeBoundingSphere();
+
+                    // var material = new THREE.MeshLambertMaterial( {
+                    //     //color: 0xaaaaaa, specular: 0xffffff, shininess: 250, side: THREE.DoubleSide ,
+                    //     vertexColors: THREE.VertexColors//, shading: THREE.FlatShading
+                    // } );
+
+                    detailedMesh = new THREE.Mesh( detailedGeometry, material );
                     scene.add( detailedMesh );
                     scene.remove(baseMesh);
 
@@ -972,7 +958,10 @@
 
                 reset: function () {
                     scene.add(baseMesh);
+
                     scene.remove(detailedMesh);
+
+                    detailedGeometry.dispose();
                 },
 
                 init: function () {

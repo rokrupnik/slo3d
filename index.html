@@ -429,23 +429,25 @@
 
                     var ipnc = 0;
 
+                    var skipW = 0, sparseFactor = 4;
+
                     var start = performance.now();
-                    for (var d = 0; d < dataDepth - 1; d++) {
-                        for (var w = 0; w < dataWidth - 1; w++) {
+                    for (var d = 0; d < dataDepth - (sparseFactor + 1); d += sparseFactor) {
+                        for (var w = 0; w < dataWidth - (sparseFactor + 1); w += sparseFactor) {
                             var ih = d * dataDepth + w;
 
                             var ax = xOffset + w                                * widthScale;
                             var ay = yOffset + (dataDepth - d)                  * depthScale;
                             var az =               (heights[ ih ])                  ;//* heightScale;
                             var bx = xOffset + w                                * widthScale;
-                            var by = yOffset + (dataDepth - (d + 1))            * depthScale;
-                            var bz = (heights[ ih + dataWidth ])                    ;//* heightScale;
-                            var cx = xOffset + (w + 1)                          * widthScale;
+                            var by = yOffset + (dataDepth - (d + sparseFactor))            * depthScale;
+                            var bz = (heights[ ih + (sparseFactor * dataWidth) ])                    ;//* heightScale;
+                            var cx = xOffset + (w + sparseFactor)                          * widthScale;
                             var cy = yOffset + (dataDepth - d)                  * depthScale;
-                            var cz =               (heights[ ih + 1 ])              ;//* heightScale;
-                            var dx = xOffset + (w + 1)                          * widthScale;
-                            var dy = yOffset + (dataDepth - (d + 1))            * depthScale;
-                            var dz =               (heights[ ih + dataWidth + 1 ])  ;//* heightScale;
+                            var cz =               (heights[ ih + sparseFactor ])              ;//* heightScale;
+                            var dx = xOffset + (w + sparseFactor)                          * widthScale;
+                            var dy = yOffset + (dataDepth - (d + sparseFactor))            * depthScale;
+                            var dz =               (heights[ ih + (sparseFactor * dataWidth) + sparseFactor ])  ;//* heightScale;
 
                             if (nextLevel.xOffset < ax && ax < nextLevel.xOffset + nextLevel.worldWidth &&
                                 nextLevel.yOffset < ay && ay < nextLevel.yOffset + nextLevel.worldWidth &&
@@ -456,7 +458,10 @@
                                 nextLevel.xOffset < dx && dx < nextLevel.xOffset + nextLevel.worldWidth &&
                                 nextLevel.yOffset < dy && dy < nextLevel.yOffset + nextLevel.worldWidth) {
 
-                                    w += Math.floor(nextLevel.worldWidth / depthScale)  - 3;
+                                    skipW = Math.floor(nextLevel.worldWidth / depthScale);
+                                    // Make it divisible by sparseFactor
+                                    skipW -= skipW % sparseFactor;
+                                    w += skipW - (sparseFactor * 3);
                                     continue;
                             }
 

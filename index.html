@@ -145,21 +145,21 @@
                 var bmin = 0, bmax = 255;
 
                 var start = performance.now();
-                for (var w = 0, ipnc = 0; w < dataWidth - 1; w++) {
-                    for (var d = 0; d < dataDepth - 1; d++) {
-                        var ih = w * dataWidth + d;
+                for (var d = 0, ipnc = 0; d < dataDepth - 1; d++) {
+                    for (var w = 0; w < dataWidth - 1; w++) {
+                        var ih = d * dataDepth + w;
 
-                        var ax = xOffset + d                                * depthScale;
-                        var ay = yOffset + (dataWidth - w)                  * widthScale;
+                        var ax = xOffset + w                                * widthScale;
+                        var ay = yOffset + (dataDepth - d)                  * depthScale;
                         var az =               (heights[ ih ])                  ;//* heightScale;
-                        var bx = xOffset + d                                * depthScale;
-                        var by = yOffset + (dataWidth - (w + 1))            * widthScale;
+                        var bx = xOffset + w                                * widthScale;
+                        var by = yOffset + (dataDepth - (d + 1))            * depthScale;
                         var bz = (heights[ ih + dataWidth ])                    ;//* heightScale;
-                        var cx = xOffset + (d + 1)                          * depthScale;
-                        var cy = yOffset + (dataWidth - w)                  * widthScale;
+                        var cx = xOffset + (w + 1)                          * widthScale;
+                        var cy = yOffset + (dataDepth - d)                  * depthScale;
                         var cz =               (heights[ ih + 1 ])              ;//* heightScale;
-                        var dx = xOffset + (d + 1)                          * depthScale;
-                        var dy = yOffset + (dataWidth - (w + 1))            * widthScale;
+                        var dx = xOffset + (w + 1)                          * widthScale;
+                        var dy = yOffset + (dataDepth - (d + 1))            * depthScale;
                         var dz =               (heights[ ih + dataWidth + 1 ])  ;//* heightScale;
 
                         // First triangle - mind the triangles orientation
@@ -430,21 +430,21 @@
                     var ipnc = 0;
 
                     var start = performance.now();
-                    for (var w = 0; w < dataWidth - 1; w++) {
-                        for (var d = 0; d < dataDepth - 1; d++) {
-                            var ih = w * dataWidth + d;
+                    for (var d = 0; d < dataDepth - 1; d++) {
+                        for (var w = 0; w < dataWidth - 1; w++) {
+                            var ih = d * dataDepth + w;
 
-                            var ax = xOffset + d                                * depthScale;
-                            var ay = yOffset + (dataWidth - w)                  * widthScale;
+                            var ax = xOffset + w                                * widthScale;
+                            var ay = yOffset + (dataDepth - d)                  * depthScale;
                             var az =               (heights[ ih ])                  ;//* heightScale;
-                            var bx = xOffset + d                                * depthScale;
-                            var by = yOffset + (dataWidth - (w + 1))            * widthScale;
+                            var bx = xOffset + w                                * widthScale;
+                            var by = yOffset + (dataDepth - (d + 1))            * depthScale;
                             var bz = (heights[ ih + dataWidth ])                    ;//* heightScale;
-                            var cx = xOffset + (d + 1)                          * depthScale;
-                            var cy = yOffset + (dataWidth - w)                  * widthScale;
+                            var cx = xOffset + (w + 1)                          * widthScale;
+                            var cy = yOffset + (dataDepth - d)                  * depthScale;
                             var cz =               (heights[ ih + 1 ])              ;//* heightScale;
-                            var dx = xOffset + (d + 1)                          * depthScale;
-                            var dy = yOffset + (dataWidth - (w + 1))            * widthScale;
+                            var dx = xOffset + (w + 1)                          * widthScale;
+                            var dy = yOffset + (dataDepth - (d + 1))            * depthScale;
                             var dz =               (heights[ ih + dataWidth + 1 ])  ;//* heightScale;
 
                             if (nextLevel.xOffset < ax && ax < nextLevel.xOffset + nextLevel.worldWidth &&
@@ -456,7 +456,7 @@
                                 nextLevel.xOffset < dx && dx < nextLevel.xOffset + nextLevel.worldWidth &&
                                 nextLevel.yOffset < dy && dy < nextLevel.yOffset + nextLevel.worldWidth) {
 
-                                    d += Math.floor(nextLevel.worldWidth / depthScale)  - 3;
+                                    w += Math.floor(nextLevel.worldWidth / depthScale)  - 3;
                                     continue;
                             }
 
@@ -565,21 +565,21 @@
                     widthScale = worldWidth / dataWidth;
                     depthScale = worldDepth / dataDepth;
 
-                    for (w = 0; w < dataWidth - 1; w++) {
-                        for (d = 0; d < dataDepth - 1; d++) {
-                            var ih = w * dataWidth + d;
+                    for (var d = 0; d < dataDepth - 1; d++) {
+                        for (var w = 0; w < dataWidth - 1; w++) {
+                            var ih = d * dataDepth + w;
 
-                            var ax = nextLevel.xOffset + d                                * depthScale;
-                            var ay = nextLevel.yOffset + (dataWidth - w)                  * widthScale;
+                            var ax = nextLevel.xOffset + w                                * widthScale;
+                            var ay = nextLevel.yOffset + (dataDepth - d)                  * depthScale;
                             var az =               (heights[ ih ])                  ;//* heightScale;
-                            var bx = nextLevel.xOffset + d                                * depthScale;
-                            var by = nextLevel.yOffset + (dataWidth - (w + 1))            * widthScale;
-                            var bz =         (heights[ ih + dataWidth ])                    ;//* heightScale;
-                            var cx = nextLevel.xOffset + (d + 1)                          * depthScale;
-                            var cy = nextLevel.yOffset + (dataWidth - w)                  * widthScale;
+                            var bx = nextLevel.xOffset + w                                * widthScale;
+                            var by = nextLevel.yOffset + (dataDepth - (d + 1))            * depthScale;
+                            var bz = (heights[ ih + dataWidth ])                    ;//* heightScale;
+                            var cx = nextLevel.xOffset + (w + 1)                          * widthScale;
+                            var cy = nextLevel.yOffset + (dataDepth - d)                  * depthScale;
                             var cz =               (heights[ ih + 1 ])              ;//* heightScale;
-                            var dx = nextLevel.xOffset + (d + 1)                          * depthScale;
-                            var dy = nextLevel.yOffset + (dataWidth - (w + 1))            * widthScale;
+                            var dx = nextLevel.xOffset + (w + 1)                          * widthScale;
+                            var dy = nextLevel.yOffset + (dataDepth - (d + 1))            * depthScale;
                             var dz =               (heights[ ih + dataWidth + 1 ])  ;//* heightScale;
 
                             // First triangle - mind the triangles orientation

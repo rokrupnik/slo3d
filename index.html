@@ -456,7 +456,7 @@
                                 nextLevel.xOffset < dx && dx < nextLevel.xOffset + nextLevel.worldWidth &&
                                 nextLevel.yOffset < dy && dy < nextLevel.yOffset + nextLevel.worldWidth) {
 
-                                    d + nextLevel.dataWidth - 1;
+                                    d += Math.floor(nextLevel.worldWidth / depthScale)  - 3;
                                     continue;
                             }
 

@@ -1,0 +1,441 @@
+var Data = (function () {
+    'use strict';
+
+    var onInitialDataLoad = function () {
+        var heights = getHeights(Data.img);
+
+        Data.baseLevel = {
+            heights: heights,
+            dataWidth: Data.img.width,
+            xOffset: xOffset,
+            yOffset: yOffset,
+            level: 6,
+            worldWidth: LOD.getLevelDimension(6)
+        };
+
+        init(heights, Data.img.width, Data.img.height, Data.hmin, Data.hmax);
+        animate();
+
+        Data.img = null;
+    };
+
+    var onDataLoad = function () {
+
+        var baseLevel = Data.baseLevel;
+
+        var ix = Data.img.src.length - 11,
+            iy = Data.img.src.length - 7,
+            ilevel = Data.img.src.length - 13,
+            level = Data.img.src.substring(ilevel, ilevel + 1) * 1,
+            hmin = Data.hmin,
+            hmax = Data.hmax;
+
+        var nextLevel = {
+            heights: getHeights(Data.img),
+            dataWidth: Data.img.width,
+            xOffset: Data.img.src.substring(ix, ix + 3) * 1000,
+            yOffset: Data.img.src.substring(iy, iy + 3) * 1000,
+            level: level,
+            worldWidth: LOD.getLevelDimension(level)
+        };
+
+
+        var squares = baseLevel.dataWidth - 1 + nextLevel.dataWidth - 1;
+
+
+        // Base level
+        var triangles = squares * squares * 2;
+        detailedGeometry = new THREE.BufferGeometry();
+        if (!Data.nextLevel.indices) {
+            Data.nextLevel.indices = new Uint32Array( triangles * 3 );
+            for ( var i = 0; i < Data.nextLevel.indices.length; i ++ ) {
+                Data.nextLevel.indices[ i ] = i;
+            }
+        }
+        if (!Data.nextLevel.positions)
+            Data.nextLevel.positions = new Float32Array( triangles * 3 * 3 );
+        if (!Data.nextLevel.normals)
+            Data.nextLevel.normals = new Int16Array( triangles * 3 * 3 );
+        if (!Data.nextLevel.colors)
+            Data.nextLevel.colors = new Uint8Array( triangles * 3 * 3 );
+
+        var color = new THREE.Color();
+        //var n = 800, n2 = n/2;  // triangles spread in the cube
+        //var d = 12, d2 = d/2;   // individual triangle size
+        var pA = new THREE.Vector3();
+        var pB = new THREE.Vector3();
+        var pC = new THREE.Vector3();
+        var pD = new THREE.Vector3();
+        var cb = new THREE.Vector3();
+        var ab = new THREE.Vector3();
+        var db = new THREE.Vector3();
+
+        var dataWidth = baseLevel.dataWidth;
+        var dataDepth = dataWidth;
+        var worldWidth = baseLevel.worldWidth;
+        var worldDepth = worldWidth;
+        var heights = baseLevel.heights;
+
+        var widthScale = worldWidth / dataWidth;
+        var depthScale = worldDepth / dataDepth;
+
+        var rmin = 0, rmax = 255;
+        var gmin = 0, gmax = 255;
+        var bmin = 0, bmax = 255;
+
+        var ipnc = 0;
+
+        var skipW = 0, sparseFactor = 4;
+
+        var start = performance.now();
+        for (var d = 0; d < dataDepth - (sparseFactor + 1); d += sparseFactor) {
+            for (var w = 0; w < dataWidth - (sparseFactor + 1); w += sparseFactor) {
+                var ih = d * dataDepth + w;
+
+                var ax = xOffset + w                                * widthScale;
+                var ay = yOffset + (dataDepth - d)                  * depthScale;
+                var az =               (heights[ ih ])                  ;//* heightScale;
+                var bx = xOffset + w                                * widthScale;
+                var by = yOffset + (dataDepth - (d + sparseFactor))            * depthScale;
+                var bz = (heights[ ih + (sparseFactor * dataWidth) ])                    ;//* heightScale;
+                var cx = xOffset + (w + sparseFactor)                          * widthScale;
+                var cy = yOffset + (dataDepth - d)                  * depthScale;
+                var cz =               (heights[ ih + sparseFactor ])              ;//* heightScale;
+                var dx = xOffset + (w + sparseFactor)                          * widthScale;
+                var dy = yOffset + (dataDepth - (d + sparseFactor))            * depthScale;
+                var dz =               (heights[ ih + (sparseFactor * dataWidth) + sparseFactor ])  ;//* heightScale;
+
+                if (nextLevel.xOffset < ax && ax < nextLevel.xOffset + nextLevel.worldWidth &&
+                    nextLevel.yOffset < ay && ay < nextLevel.yOffset + nextLevel.worldWidth &&
+                    nextLevel.xOffset < bx && bx < nextLevel.xOffset + nextLevel.worldWidth &&
+                    nextLevel.yOffset < by && by < nextLevel.yOffset + nextLevel.worldWidth &&
+                    nextLevel.xOffset < cx && cx < nextLevel.xOffset + nextLevel.worldWidth &&
+                    nextLevel.yOffset < cy && cy < nextLevel.yOffset + nextLevel.worldWidth &&
+                    nextLevel.xOffset < dx && dx < nextLevel.xOffset + nextLevel.worldWidth &&
+                    nextLevel.yOffset < dy && dy < nextLevel.yOffset + nextLevel.worldWidth) {
+
+                        skipW = Math.floor(nextLevel.worldWidth / depthScale);
+                        // Make it divisible by sparseFactor
+                        skipW -= skipW % sparseFactor;
+                        w += skipW - (sparseFactor * 3);
+                        continue;
+                }
+
+
+                // First triangle - mind the triangles orientation
+                Data.nextLevel.positions[ ipnc ]     = ax;
+                Data.nextLevel.positions[ ipnc + 1 ] = ay;
+                Data.nextLevel.positions[ ipnc + 2 ] = az;
+                Data.nextLevel.positions[ ipnc + 3 ] = bx;
+                Data.nextLevel.positions[ ipnc + 4 ] = by;
+                Data.nextLevel.positions[ ipnc + 5 ] = bz;
+                Data.nextLevel.positions[ ipnc + 6 ] = cx;
+                Data.nextLevel.positions[ ipnc + 7 ] = cy;
+                Data.nextLevel.positions[ ipnc + 8 ] = cz;
+                // Second triangle
+                Data.nextLevel.positions[ ipnc + 9 ]  = bx;
+                Data.nextLevel.positions[ ipnc + 10 ] = by;
+                Data.nextLevel.positions[ ipnc + 11 ] = bz;
+                Data.nextLevel.positions[ ipnc + 12 ] = dx;
+                Data.nextLevel.positions[ ipnc + 13 ] = dy;
+                Data.nextLevel.positions[ ipnc + 14 ] = dz;
+                Data.nextLevel.positions[ ipnc + 15 ] = cx;
+                Data.nextLevel.positions[ ipnc + 16 ] = cy;
+                Data.nextLevel.positions[ ipnc + 17 ] = cz;
+
+                // flat face normals
+                pA.set( ax, ay, az );
+                pB.set( bx, by, bz );
+                pC.set( cx, cy, cz );
+                pD.set( dx, dy, dz );
+                // First triangle
+                cb.subVectors( pC, pB );
+                ab.subVectors( pA, pB );
+                ab.cross( cb );
+                ab.normalize();
+                var nx0 = ab.x;
+                var ny0 = ab.y;
+                var nz0 = ab.z;
+                Data.nextLevel.normals[ ipnc ]     = nx0 * 32767;
+                Data.nextLevel.normals[ ipnc + 1 ] = ny0 * 32767;
+                Data.nextLevel.normals[ ipnc + 2 ] = nz0 * 32767;
+                Data.nextLevel.normals[ ipnc + 3 ] = nx0 * 32767;
+                Data.nextLevel.normals[ ipnc + 4 ] = ny0 * 32767;
+                Data.nextLevel.normals[ ipnc + 5 ] = nz0 * 32767;
+                Data.nextLevel.normals[ ipnc + 6 ] = nx0 * 32767;
+                Data.nextLevel.normals[ ipnc + 7 ] = ny0 * 32767;
+                Data.nextLevel.normals[ ipnc + 8 ] = nz0 * 32767;
+                // Second triangle
+                db.subVectors( pD, pB );
+                cb.subVectors( pC, pB );
+                cb.cross( db );
+                cb.normalize();
+                var nx1 = cb.x;
+                var ny1 = cb.y;
+                var nz1 = cb.z;
+                Data.nextLevel.normals[ ipnc + 9 ]  = nx1 * 32767;
+                Data.nextLevel.normals[ ipnc + 10 ] = ny1 * 32767;
+                Data.nextLevel.normals[ ipnc + 11 ] = nz1 * 32767;
+                Data.nextLevel.normals[ ipnc + 12 ] = nx1 * 32767;
+                Data.nextLevel.normals[ ipnc + 13 ] = ny1 * 32767;
+                Data.nextLevel.normals[ ipnc + 14 ] = nz1 * 32767;
+                Data.nextLevel.normals[ ipnc + 15 ] = nx1 * 32767;
+                Data.nextLevel.normals[ ipnc + 16 ] = ny1 * 32767;
+                Data.nextLevel.normals[ ipnc + 17 ] = nz1 * 32767;
+
+                // colors
+                // (k*low.red + (1-k)*hi.red,
+                // k*low.green + (1-k)*hi.green,
+                // k*low.blue + (1-k)*hi.blue)
+                // where k = (height-minHeight) / (maxHeight-minHeight).
+                var ak = (az - hmin) / (hmax - hmin);
+                var bk = (bz - hmin) / (hmax - hmin);
+                var ck = (cz - hmin) / (hmax - hmin);
+                var dk = (dz - hmin) / (hmax - hmin);
+                // First triangle
+                Data.nextLevel.colors[ ipnc ]     = ((1 - ak) * rmin) + (ak * rmax);
+                Data.nextLevel.colors[ ipnc + 1 ] = ((1 - ak) * gmin) + (ak * gmax);
+                Data.nextLevel.colors[ ipnc + 2 ] = ((1 - ak) * bmin) + (ak * bmax);
+                Data.nextLevel.colors[ ipnc + 3 ] = ((1 - bk) * rmin) + (bk * rmax);
+                Data.nextLevel.colors[ ipnc + 4 ] = ((1 - bk) * gmin) + (bk * gmax);
+                Data.nextLevel.colors[ ipnc + 5 ] = ((1 - bk) * bmin) + (bk * bmax);
+                Data.nextLevel.colors[ ipnc + 6 ] = ((1 - ck) * rmin) + (ck * rmax);
+                Data.nextLevel.colors[ ipnc + 7 ] = ((1 - ck) * gmin) + (ck * gmax);
+                Data.nextLevel.colors[ ipnc + 8 ] = ((1 - ck) * bmin) + (ck * bmax);
+                // Second triangle
+                Data.nextLevel.colors[ ipnc + 9 ]  = ((1 - ck) * rmin) + (ck * rmax);
+                Data.nextLevel.colors[ ipnc + 10 ] = ((1 - ck) * gmin) + (ck * gmax);
+                Data.nextLevel.colors[ ipnc + 11 ] = ((1 - ck) * bmin) + (ck * bmax);
+                Data.nextLevel.colors[ ipnc + 12 ] = ((1 - bk) * rmin) + (bk * rmax);
+                Data.nextLevel.colors[ ipnc + 13 ] = ((1 - bk) * gmin) + (bk * gmax);
+                Data.nextLevel.colors[ ipnc + 14 ] = ((1 - bk) * bmin) + (bk * bmax);
+                Data.nextLevel.colors[ ipnc + 15 ] = ((1 - dk) * rmin) + (dk * rmax);
+                Data.nextLevel.colors[ ipnc + 16 ] = ((1 - dk) * gmin) + (dk * gmax);
+                Data.nextLevel.colors[ ipnc + 17 ] = ((1 - dk) * bmin) + (dk * bmax);
+
+                ipnc += 18;
+            }
+        }
+
+        dataWidth = nextLevel.dataWidth;
+        dataDepth = dataWidth;
+        worldWidth = nextLevel.worldWidth;
+        worldDepth = worldWidth;
+        heights = nextLevel.heights;
+
+        widthScale = worldWidth / dataWidth;
+        depthScale = worldDepth / dataDepth;
+
+        for (var d = 0; d < dataDepth - 1; d++) {
+            for (var w = 0; w < dataWidth - 1; w++) {
+                var ih = d * dataDepth + w;
+
+                var ax = nextLevel.xOffset + w                                * widthScale;
+                var ay = nextLevel.yOffset + (dataDepth - d)                  * depthScale;
+                var az =               (heights[ ih ])                  ;//* heightScale;
+                var bx = nextLevel.xOffset + w                                * widthScale;
+                var by = nextLevel.yOffset + (dataDepth - (d + 1))            * depthScale;
+                var bz = (heights[ ih + dataWidth ])                    ;//* heightScale;
+                var cx = nextLevel.xOffset + (w + 1)                          * widthScale;
+                var cy = nextLevel.yOffset + (dataDepth - d)                  * depthScale;
+                var cz =               (heights[ ih + 1 ])              ;//* heightScale;
+                var dx = nextLevel.xOffset + (w + 1)                          * widthScale;
+                var dy = nextLevel.yOffset + (dataDepth - (d + 1))            * depthScale;
+                var dz =               (heights[ ih + dataWidth + 1 ])  ;//* heightScale;
+
+                // First triangle - mind the triangles orientation
+                Data.nextLevel.positions[ ipnc ]     = ax;
+                Data.nextLevel.positions[ ipnc + 1 ] = ay;
+                Data.nextLevel.positions[ ipnc + 2 ] = az;
+                Data.nextLevel.positions[ ipnc + 3 ] = bx;
+                Data.nextLevel.positions[ ipnc + 4 ] = by;
+                Data.nextLevel.positions[ ipnc + 5 ] = bz;
+                Data.nextLevel.positions[ ipnc + 6 ] = cx;
+                Data.nextLevel.positions[ ipnc + 7 ] = cy;
+                Data.nextLevel.positions[ ipnc + 8 ] = cz;
+                // Second triangle
+                Data.nextLevel.positions[ ipnc + 9 ]  = bx;
+                Data.nextLevel.positions[ ipnc + 10 ] = by;
+                Data.nextLevel.positions[ ipnc + 11 ] = bz;
+                Data.nextLevel.positions[ ipnc + 12 ] = dx;
+                Data.nextLevel.positions[ ipnc + 13 ] = dy;
+                Data.nextLevel.positions[ ipnc + 14 ] = dz;
+                Data.nextLevel.positions[ ipnc + 15 ] = cx;
+                Data.nextLevel.positions[ ipnc + 16 ] = cy;
+                Data.nextLevel.positions[ ipnc + 17 ] = cz;
+
+                // flat face Data.nextLevel.normals
+                pA.set( ax, ay, az );
+                pB.set( bx, by, bz );
+                pC.set( cx, cy, cz );
+                pD.set( dx, dy, dz );
+                // First triangle
+                cb.subVectors( pC, pB );
+                ab.subVectors( pA, pB );
+                ab.cross( cb );
+                ab.normalize();
+                var nx0 = ab.x;
+                var ny0 = ab.y;
+                var nz0 = ab.z;
+                Data.nextLevel.normals[ ipnc ]     = nx0 * 32767;
+                Data.nextLevel.normals[ ipnc + 1 ] = ny0 * 32767;
+                Data.nextLevel.normals[ ipnc + 2 ] = nz0 * 32767;
+                Data.nextLevel.normals[ ipnc + 3 ] = nx0 * 32767;
+                Data.nextLevel.normals[ ipnc + 4 ] = ny0 * 32767;
+                Data.nextLevel.normals[ ipnc + 5 ] = nz0 * 32767;
+                Data.nextLevel.normals[ ipnc + 6 ] = nx0 * 32767;
+                Data.nextLevel.normals[ ipnc + 7 ] = ny0 * 32767;
+                Data.nextLevel.normals[ ipnc + 8 ] = nz0 * 32767;
+                // Second triangle
+                db.subVectors( pD, pB );
+                cb.subVectors( pC, pB );
+                cb.cross( db );
+                cb.normalize();
+                var nx1 = cb.x;
+                var ny1 = cb.y;
+                var nz1 = cb.z;
+                Data.nextLevel.normals[ ipnc + 9 ]  = nx1 * 32767;
+                Data.nextLevel.normals[ ipnc + 10 ] = ny1 * 32767;
+                Data.nextLevel.normals[ ipnc + 11 ] = nz1 * 32767;
+                Data.nextLevel.normals[ ipnc + 12 ] = nx1 * 32767;
+                Data.nextLevel.normals[ ipnc + 13 ] = ny1 * 32767;
+                Data.nextLevel.normals[ ipnc + 14 ] = nz1 * 32767;
+                Data.nextLevel.normals[ ipnc + 15 ] = nx1 * 32767;
+                Data.nextLevel.normals[ ipnc + 16 ] = ny1 * 32767;
+                Data.nextLevel.normals[ ipnc + 17 ] = nz1 * 32767;
+
+                // Data.nextLevel.colors
+                // (k*low.red + (1-k)*hi.red,
+                // k*low.green + (1-k)*hi.green,
+                // k*low.blue + (1-k)*hi.blue)
+                // where k = (height-minHeight) / (maxHeight-minHeight).
+                var ak = (az - hmin) / (hmax - hmin);
+                var bk = (bz - hmin) / (hmax - hmin);
+                var ck = (cz - hmin) / (hmax - hmin);
+                var dk = (dz - hmin) / (hmax - hmin);
+                // First triangle
+                Data.nextLevel.colors[ ipnc ]     = ((1 - ak) * rmin) + (ak * rmax);
+                Data.nextLevel.colors[ ipnc + 1 ] = ((1 - ak) * gmin) + (ak * gmax);
+                Data.nextLevel.colors[ ipnc + 2 ] = ((1 - ak) * bmin) + (ak * bmax);
+                Data.nextLevel.colors[ ipnc + 3 ] = ((1 - bk) * rmin) + (bk * rmax);
+                Data.nextLevel.colors[ ipnc + 4 ] = ((1 - bk) * gmin) + (bk * gmax);
+                Data.nextLevel.colors[ ipnc + 5 ] = ((1 - bk) * bmin) + (bk * bmax);
+                Data.nextLevel.colors[ ipnc + 6 ] = ((1 - ck) * rmin) + (ck * rmax);
+                Data.nextLevel.colors[ ipnc + 7 ] = ((1 - ck) * gmin) + (ck * gmax);
+                Data.nextLevel.colors[ ipnc + 8 ] = ((1 - ck) * bmin) + (ck * bmax);
+                // Second triangle
+                Data.nextLevel.colors[ ipnc + 9 ]  = ((1 - ck) * rmin) + (ck * rmax);
+                Data.nextLevel.colors[ ipnc + 10 ] = ((1 - ck) * gmin) + (ck * gmax);
+                Data.nextLevel.colors[ ipnc + 11 ] = ((1 - ck) * bmin) + (ck * bmax);
+                Data.nextLevel.colors[ ipnc + 12 ] = ((1 - bk) * rmin) + (bk * rmax);
+                Data.nextLevel.colors[ ipnc + 13 ] = ((1 - bk) * gmin) + (bk * gmax);
+                Data.nextLevel.colors[ ipnc + 14 ] = ((1 - bk) * bmin) + (bk * bmax);
+                Data.nextLevel.colors[ ipnc + 15 ] = ((1 - dk) * rmin) + (dk * rmax);
+                Data.nextLevel.colors[ ipnc + 16 ] = ((1 - dk) * gmin) + (dk * gmax);
+                Data.nextLevel.colors[ ipnc + 17 ] = ((1 - dk) * bmin) + (dk * bmax);
+
+                ipnc += 18;
+            }
+        }
+        console.log('detailed mesh: ', performance.now() - start);
+
+        detailedGeometry.setIndex( new THREE.BufferAttribute( Data.nextLevel.indices, 1 ) );
+        detailedGeometry.addAttribute( 'position', new THREE.BufferAttribute( Data.nextLevel.positions, 3 ) );
+        detailedGeometry.addAttribute( 'normal', new THREE.BufferAttribute( Data.nextLevel.normals, 3, true ) );
+        detailedGeometry.addAttribute( 'color', new THREE.BufferAttribute( Data.nextLevel.colors, 3, true ) );
+
+        //detailedGeometry.computeBoundingSphere();
+
+        // var material = new THREE.MeshLambertMaterial( {
+        //     //color: 0xaaaaaa, specular: 0xffffff, shininess: 250, side: THREE.DoubleSide ,
+        //     vertexColors: THREE.VertexColors//, shading: THREE.FlatShading
+        // } );
+
+        detailedMesh = new THREE.Mesh( detailedGeometry, material );
+        scene.add( detailedMesh );
+        scene.remove(baseMesh);
+
+        //init(processedImage.heights, Data.img.width, Data.img.height, processedImage.hmin, processedImage.hmax);
+
+        Data.img = null;
+
+        LOD.updateInProgress = false;
+        console.log('LOD update stop');
+    };
+
+    var getHeights = function (image) {
+        var canvas = document.createElement("canvas");
+        canvas.width = image.width;
+        canvas.height = image.height;
+        var context = canvas.getContext("2d");
+        context.drawImage(image, 0, 0);
+
+        /** IMAGE DATA EXPLANATION
+         * The data property returns a Uint8ClampedArray which can be accessed
+         * to look at the raw pixel data; each pixel is represented by four
+         * one-byte values (red, green, blue, and alpha, in that order; that is, "RGBA" format).
+         * Each color component is represented by an integer between 0 and 255.
+         * Each component is assigned a consecutive index within the array,
+         * with the top left pixel's red component being at index 0 within the array.
+         * Pixels then proceed from left to right, then downward, throughout the array.
+         */
+        var imageData = context.getImageData(0, 0, image.width, image.height).data;
+
+        var buffer = 0,
+            r = 0, g = 0, b = 0,
+            iHeights = 0,
+            heights = new Float32Array(image.width * image.height);
+
+        for (var i = 0; i < imageData.length; i += 4) {
+            r = (imageData[i] << 16);
+            g = (imageData[i+1] << 8);
+            b = (imageData[i+2]);
+            buffer = r | g | b;
+            //imageData[i+4] -> alpha value
+
+            buffer /= 100;
+
+            heights[iHeights] = buffer;
+
+            if (buffer < Data.hmin)
+                Data.hmin = buffer;
+            if (buffer > Data.hmax)
+                Data.hmax = buffer;
+
+            iHeights += 1;
+        }
+
+        return heights;
+    };
+
+    var loadData = function (level, x, y) {
+        Data.img = new Image();
+        Data.img.addEventListener("load", onDataLoad);
+        Data.img.src = 'data/' + level + '/' + Math.floor(x / 1000) + '_' + Math.floor(y / 1000) + '.png';
+    };
+
+    return {
+        initialHeightMap: "data/6/412_98.png",
+        img: null,
+        hmin: 3000.0,
+        hmax: -1,
+        baseLevel: null,
+        nextLevel: {
+            indices: null,
+            positions: null,
+            normals: null,
+            colors: null
+        },
+
+        loadData: loadData,
+
+        init: function () {
+            Data.img = new Image();
+            Data.img.addEventListener("load", onInitialDataLoad);
+            Data.img.src = Data.initialHeightMap;
+        }
+    };
+
+})();
+
+Data.init();

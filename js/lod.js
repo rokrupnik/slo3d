@@ -19,16 +19,20 @@ var LOD = (function () {
 
             if (nextLevel > LOD.level) {
                 console.log('LOD update');
-                LOD.level = nextLevel;
 
                 var x = controls.target.x,//intersection.point.x,
                     y = controls.target.y;//intersection.point.y;
 
-                var levelDim = getLevelDimension(LOD.level);
+                var levelDim = getLevelDimension(nextLevel);
 
                 var qtNode = World.searchQtree(x, y, levelDim);
-
-                Data.loadData(LOD.level, qtNode.x, qtNode.y);
+                if (qtNode === null) {
+                    // Target x and y are out of the world are
+                    LOD.updateInProgress = false;
+                } else {
+                    LOD.level = nextLevel;
+                    Data.loadData(LOD.level, qtNode.x, qtNode.y);
+                }
             } else if (nextLevel < LOD.level) {
                 LOD.level = nextLevel;
 

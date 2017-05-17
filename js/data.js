@@ -81,6 +81,8 @@ var Data = (function () {
 
         var skipW = 0, sparseFactor = calculateSparseFactor(Data.baseLevel.xOffset, Data.baseLevel.yOffset + Data.baseLevel.worldWidth);
 
+        var nextRowSparseFactor, previousSparseFactor = sparseFactor;
+
         var rowSparseFactor = Math.max(
             calculateSparseFactor(Data.baseLevel.xOffset, Data.baseLevel.yOffset),
             sparseFactor,
@@ -90,7 +92,7 @@ var Data = (function () {
 
         console.log(Data.baseLevel.xOffset, Data.baseLevel.yOffset, Data.nextLevel.xOffset, Data.nextLevel.yOffset, Data.nextLevel.halfWidth, Data.nextLevel.center, sparseFactor, rowSparseFactor);
 
-        var drawSquare = function (w, d) {
+        var drawSquare = function (w, d, sparseFactor, debug) {
             var ih = d * dataDepth + w;
 
             var ax = xOffset + w                                * widthScale;
@@ -106,14 +108,14 @@ var Data = (function () {
             var dy = yOffset + (dataDepth - (d + sparseFactor))            * depthScale;
             var dz =               (heights[ ih + (sparseFactor * dataWidth) + sparseFactor ])  ;//* heightScale;
 
-            if (Data.nextLevel.xOffset < ax && ax < Data.nextLevel.xOffset + Data.nextLevel.worldWidth &&
-                Data.nextLevel.yOffset < ay && ay < Data.nextLevel.yOffset + Data.nextLevel.worldWidth &&
-                Data.nextLevel.xOffset < bx && bx < Data.nextLevel.xOffset + Data.nextLevel.worldWidth &&
-                Data.nextLevel.yOffset < by && by < Data.nextLevel.yOffset + Data.nextLevel.worldWidth &&
-                Data.nextLevel.xOffset < cx && cx < Data.nextLevel.xOffset + Data.nextLevel.worldWidth &&
-                Data.nextLevel.yOffset < cy && cy < Data.nextLevel.yOffset + Data.nextLevel.worldWidth &&
-                Data.nextLevel.xOffset < dx && dx < Data.nextLevel.xOffset + Data.nextLevel.worldWidth &&
-                Data.nextLevel.yOffset < dy && dy < Data.nextLevel.yOffset + Data.nextLevel.worldWidth) {
+            if (Data.nextLevel.xOffset + 10 < ax && ax < Data.nextLevel.xOffset + Data.nextLevel.worldWidth - 10 &&
+                Data.nextLevel.yOffset + 10 < ay && ay < Data.nextLevel.yOffset + Data.nextLevel.worldWidth - 10 &&
+                Data.nextLevel.xOffset + 10 < bx && bx < Data.nextLevel.xOffset + Data.nextLevel.worldWidth - 10 &&
+                Data.nextLevel.yOffset + 10 < by && by < Data.nextLevel.yOffset + Data.nextLevel.worldWidth - 10 &&
+                Data.nextLevel.xOffset + 10 < cx && cx < Data.nextLevel.xOffset + Data.nextLevel.worldWidth - 10 &&
+                Data.nextLevel.yOffset + 10 < cy && cy < Data.nextLevel.yOffset + Data.nextLevel.worldWidth - 10 &&
+                Data.nextLevel.xOffset + 10 < dx && dx < Data.nextLevel.xOffset + Data.nextLevel.worldWidth - 10 &&
+                Data.nextLevel.yOffset + 10 < dy && dy < Data.nextLevel.yOffset + Data.nextLevel.worldWidth - 10) {
 
                     return false;
             }
@@ -188,6 +190,8 @@ var Data = (function () {
             var bk = (bz - hmin) / (hmax - hmin);
             var ck = (cz - hmin) / (hmax - hmin);
             var dk = (dz - hmin) / (hmax - hmin);
+            gmax = debug ? 0 : 255;
+            bmax = debug ? 0 : 255;
             // First triangle
             Data.nextLevel.colors[ ipnc ]     = ((1 - ak) * rmin) + (ak * rmax);
             Data.nextLevel.colors[ ipnc + 1 ] = ((1 - ak) * gmin) + (ak * gmax);
@@ -223,18 +227,32 @@ var Data = (function () {
 
                 sparseFactor = calculateSparseFactor(ax, ay);
 
-                for (var i = 0; i < (rowSparseFactor / sparseFactor); i++) {
-                    var squareWasDrawn = drawSquare(w, d + i * sparseFactor);
-                    if (i === 0 && !squareWasDrawn) {
-                        // Square was not drawn, because we are in next level area
-                        skipW = Math.floor(Data.nextLevel.worldWidth / depthScale);
-                        // Make it divisible by sparseFactor
-                        skipW -= skipW % sparseFactor;
-                        w += skipW - (sparseFactor * 3);
 
-                        break;
+                if (previousSparseFactor != sparseFactor) {
+                    // Stiching levels west <-> east
+                    for (var i = 0; i < (rowSparseFactor / previousSparseFactor); i++) {
+                        drawSquare(w, d + i * previousSparseFactor, previousSparseFactor);
+                    }
+                } else {
+                    // Stiching levels north <-> south
+                    nextRowSparseFactor = calculateSparseFactor(ax, ay - d * depthScale);
+                    if (nextRowSparseFactor != sparseFactor) {
+                        drawSquare(w, d + rowSparseFactor, sparseFactor);
                     }
                 }
+
+                var allSquaresWereDrawn = false;
+                for (var i = 0; i < (rowSparseFactor / sparseFactor); i++) {
+                    allSquaresWereDrawn = drawSquare(w, d + i * sparseFactor, sparseFactor) || allSquaresWereDrawn;
+                }
+                if (!allSquaresWereDrawn) {
+                    // Square was not drawn, because we are in next level area
+                    skipW = Math.floor(Data.nextLevel.worldWidth / depthScale);
+                    // Make it divisible by sparseFactor
+                    skipW -= skipW % sparseFactor;
+                    w += skipW - (sparseFactor * 3);
+                }
+                previousSparseFactor = sparseFactor;
             }
         }
 
@@ -439,7 +457,10 @@ var Data = (function () {
         var distance = Math.max(Math.abs(Data.nextLevel.center.x - x), Math.abs(Data.nextLevel.center.y - y));
 
         // Subtract epsilon to avoid getting values for out of the main area
-        return Math.pow(2, Math.floor((distance - 0.001) / Data.nextLevel.halfWidth));
+        var sparseFactor = Math.pow(2, Math.floor((distance - 0.001) / Data.nextLevel.halfWidth));
+
+        // SparseFactor cannot be smaller than 2
+        return Math.max(sparseFactor, 2);
     };
 
     /**

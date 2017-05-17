@@ -12,7 +12,7 @@ var LOD = (function () {
 
             //intersection = World.getViewIntersection();
 
-            if (camera.position.z < 3000)
+            if (camera.position.z < 8000)
                 nextLevel = 8;
             else
                 nextLevel = 6;

@@ -12,7 +12,7 @@ var LOD = (function () {
 
             //intersection = World.getViewIntersection();
 
-            if (camera.position.z < 8000)
+            if (camera.position.z < 3000)
                 nextLevel = 8;
             else
                 nextLevel = 6;
@@ -32,6 +32,7 @@ var LOD = (function () {
                 } else {
                     LOD.level = nextLevel;
                     Data.loadData(LOD.level, qtNode.x, qtNode.y);
+                    Texture.loadTexture(LOD.level, qtNode.x, qtNode.y);
                 }
             } else if (nextLevel < LOD.level) {
                 LOD.level = nextLevel;

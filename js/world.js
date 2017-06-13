@@ -1,6 +1,13 @@
 var World = (function () {
     'use strict';
 
+    // Coordinates
+
+    // http://gis.arso.gov.si/arcgis/rest/services/DOF25_2014_2015/MapServer/export?bbox=412000.0%2C98000.0%2C428000.0%2C114000.0&bboxSR=3794&layers=&layerDefs=&size=&imageSR=&format=png&transparent=true&dpi=&time=&layerTimeOptions=&dynamicLayers=&gdbVersion=&mapScale=&f=image
+
+    var D48GK = "+proj=tmerc +lat_0=0 +lon_0=15 +k=0.9999 +x_0=500000 +y_0=-5000000 +ellps=bessel +towgs84=430.8554,121.4779,459.6256,4.3787,4.3716,-11.9863,17.3666 +units=m +no_defs";
+    var D96TM = "+proj=tmerc +lat_0=0 +lon_0=15 +k=0.9999 +x_0=500000 +y_0=-5000000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs";
+
     var qt = null;
 
     /**
@@ -146,12 +153,35 @@ var World = (function () {
         detailedGeometry.dispose();
     };
 
+    /**
+     * Reprojects a coordinate in D96TM projection to a coordinate in D48GK projection.
+     * @param {Array} xy Array with x and y coordinate in D96TM projection. Eg. [x, y]
+     * @return {Array}
+     */
+    var d96tm2d48gk = function(xy) {
+        return proj4(D96TM, D48GK, xy);
+    }
+
     return {
+        bbox: {
+            d96tm: {
+                xy0: [xOffset, yOffset],
+                xy1: [xOffset + worldWidth, yOffset + worldDepth]
+            },
+            d48gk: {
+                xy0: [0, 0],
+                xy1: [0, 0]
+            }
+        },
         qt: null,
         searchQtree: searchQtree,
         reset: reset,
+        d96tm2d48gk: d96tm2d48gk,
         init: function () {
             qt = buildQtree(xOffset, yOffset, worldWidth, worldDepth);//374000, 31000, 256000, 256000);//
+
+            World.bbox.d48gk.xy0 = proj4(D96TM, D48GK, World.bbox.d96tm.xy0);
+            World.bbox.d48gk.xy1 = proj4(D96TM, D48GK, World.bbox.d96tm.xy1);
         }
     };
 })();

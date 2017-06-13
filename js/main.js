@@ -1,10 +1,18 @@
 clock = new THREE.Clock();
 
 function init(heights, dataWidth, dataDepth, hmin, hmax) {
+
+    // Wait until both heights data and texture finishes loading
+    if (Data.loadingInProgress || Texture.loadingInProgress) {
+        return;
+    }
+
+    Data.img = null;
+
     worldDataWidth = dataWidth;
     worldDataDepth = dataDepth;
 
-    camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 20000 );
+    camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 200000 );
 
     scene = new THREE.Scene();//
 
@@ -54,10 +62,8 @@ function init(heights, dataWidth, dataDepth, hmin, hmax) {
     }
     var positions = new Float32Array( triangles * 3 * 3 );
     var normals = new Int16Array( triangles * 3 * 3 );
-    var colors = new Uint8Array( triangles * 3 * 3 );
-    var color = new THREE.Color();
-    //var n = 800, n2 = n/2;  // triangles spread in the cube
-    //var d = 12, d2 = d/2;   // individual triangle size
+    var uvs = new Float32Array( triangles * 3 * 2 );
+
     var pA = new THREE.Vector3();
     var pB = new THREE.Vector3();
     var pC = new THREE.Vector3();
@@ -70,12 +76,8 @@ function init(heights, dataWidth, dataDepth, hmin, hmax) {
     var depthScale = worldDepth / dataDepth;
     var heightScale = 0.1;
 
-    var rmin = 0, rmax = 255;
-    var gmin = 0, gmax = 255;
-    var bmin = 0, bmax = 255;
-
     var start = performance.now();
-    for (var d = 0, ipnc = 0; d < dataDepth - 1; d++) {
+    for (var d = 0, ipnc = 0, iuv = 0; d < dataDepth - 1; d++) {
         for (var w = 0; w < dataWidth - 1; w++) {
             var ih = d * dataDepth + w;
 
@@ -153,37 +155,24 @@ function init(heights, dataWidth, dataDepth, hmin, hmax) {
             normals[ ipnc + 16 ] = ny1 * 32767;
             normals[ ipnc + 17 ] = nz1 * 32767;
 
-            // colors
-            // (k*low.red + (1-k)*hi.red,
-            // k*low.green + (1-k)*hi.green,
-            // k*low.blue + (1-k)*hi.blue)
-            // where k = (height-minHeight) / (maxHeight-minHeight).
-            var ak = (az - hmin) / (hmax - hmin);
-            var bk = (bz - hmin) / (hmax - hmin);
-            var ck = (cz - hmin) / (hmax - hmin);
-            var dk = (dz - hmin) / (hmax - hmin);
+            // uvs
             // First triangle
-            colors[ ipnc ]     = ((1 - ak) * rmin) + (ak * rmax);
-            colors[ ipnc + 1 ] = ((1 - ak) * gmin) + (ak * gmax);
-            colors[ ipnc + 2 ] = ((1 - ak) * bmin) + (ak * bmax);
-            colors[ ipnc + 3 ] = ((1 - bk) * rmin) + (bk * rmax);
-            colors[ ipnc + 4 ] = ((1 - bk) * gmin) + (bk * gmax);
-            colors[ ipnc + 5 ] = ((1 - bk) * bmin) + (bk * bmax);
-            colors[ ipnc + 6 ] = ((1 - ck) * rmin) + (ck * rmax);
-            colors[ ipnc + 7 ] = ((1 - ck) * gmin) + (ck * gmax);
-            colors[ ipnc + 8 ] = ((1 - ck) * bmin) + (ck * bmax);
+            uvs[ iuv ]     = w  / dataWidth;
+            uvs[ iuv + 1 ] = d / dataDepth;
+            uvs[ iuv + 2 ] = w  / dataWidth;
+            uvs[ iuv + 3 ] = (d + 1) / dataDepth;
+            uvs[ iuv + 4 ] = (w + 1)  / dataWidth;
+            uvs[ iuv + 5 ] = d / dataDepth;
             // Second triangle
-            colors[ ipnc + 9 ]  = ((1 - ck) * rmin) + (ck * rmax);
-            colors[ ipnc + 10 ] = ((1 - ck) * gmin) + (ck * gmax);
-            colors[ ipnc + 11 ] = ((1 - ck) * bmin) + (ck * bmax);
-            colors[ ipnc + 12 ] = ((1 - bk) * rmin) + (bk * rmax);
-            colors[ ipnc + 13 ] = ((1 - bk) * gmin) + (bk * gmax);
-            colors[ ipnc + 14 ] = ((1 - bk) * bmin) + (bk * bmax);
-            colors[ ipnc + 15 ] = ((1 - dk) * rmin) + (dk * rmax);
-            colors[ ipnc + 16 ] = ((1 - dk) * gmin) + (dk * gmax);
-            colors[ ipnc + 17 ] = ((1 - dk) * bmin) + (dk * bmax);
+            uvs[ iuv + 6 ]  = (w + 1)  / dataWidth;
+            uvs[ iuv + 7 ]  = d / dataDepth;
+            uvs[ iuv + 8 ]  = w  / dataWidth;
+            uvs[ iuv + 9 ]  = (d + 1) / dataDepth;
+            uvs[ iuv + 10 ] = (w + 1)  / dataWidth;
+            uvs[ iuv + 11 ] = (d + 1) / dataDepth;
 
             ipnc += 18;
+            iuv += 12;
         }
     }
 
@@ -192,29 +181,34 @@ function init(heights, dataWidth, dataDepth, hmin, hmax) {
     geometry.setIndex( new THREE.BufferAttribute( indices, 1 ) );
     geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
     geometry.addAttribute( 'normal', new THREE.BufferAttribute( normals, 3, true ) );
-    geometry.addAttribute( 'color', new THREE.BufferAttribute( colors, 3, true ) );
+    geometry.addAttribute( 'uv', new THREE.BufferAttribute( uvs, 2 ) );
 
     // Reset memory
     indices = null;
     positions = null;
     normals = null;
-    colors = null;
+    uvs = null;
 
     //geometry.computeBoundingSphere();
-
-    material = new THREE.MeshLambertMaterial( {
-        //color: 0xaaaaaa, specular: 0xffffff, shininess: 250, side: THREE.DoubleSide ,
-        vertexColors: THREE.VertexColors, shading: THREE.SmoothShading
-    } );
-    baseMesh = new THREE.Mesh( geometry, material );
-    scene.add( baseMesh );
 
     // axes
 
     // var axes = new THREE.AxisHelper( worldDepth );
     // scene.add( axes );
 
-    //
+    // material
+
+    material = new THREE.MeshLambertMaterial( {
+        //side: THREE.DoubleSide ,
+        //vertexColors: THREE.FaceColors,
+        shading: THREE.FlatShading,
+        map: texture
+    } );
+
+    // mesh
+
+    baseMesh = new THREE.Mesh( geometry, material );
+    scene.add( baseMesh );
 
     container.innerHTML = "";
 
@@ -227,6 +221,7 @@ function init(heights, dataWidth, dataDepth, hmin, hmax) {
 
     window.addEventListener( 'resize', onWindowResize, false );
 
+    animate();
 }
 
 function onWindowResize() {
@@ -235,8 +230,6 @@ function onWindowResize() {
     camera.updateProjectionMatrix();
 
     renderer.setSize( window.innerWidth, window.innerHeight );
-
-    controls.handleResize();
 
 }
 

@@ -33,25 +33,33 @@ def concat_and_save(z, x0, x_range, y0, y_range):
     y1 = (y0 + y_range) - 1
 
     blank_image = Image.new("RGB", (image_size * x_range, image_size * y_range))
+    image_has_pixels_with_data = False
+    # previous_picture_found = False
 
     for (x, x_image) in zip(range(x0, x1 + 1), range(0, image_size * x_range, image_size)):
         for (y, y_image) in zip(range(y0, y1 + 1), range(image_size * (y_range - 1), -1, -image_size)):
             try:
-                image = Image.open('../../data/%s/%s_%s.png' % (z, x, y))
+                image = Image.open('./%s/%s_%s.png' % (z, x, y))
 
                 blank_image.paste(image, (x_image, y_image))
+                image_has_pixels_with_data = True
+                # previous_picture_found = True
             except FileNotFoundError:
+                # if (previous_picture_found):
+                #     print('Not found: ', z, x, y)
+                # previous_picture_found = False
                 continue
 
-    blank_image.save('../data/%s/%s_%s.png' % (z, x0, y0))
+    if (image_has_pixels_with_data):
+        blank_image.save('./concat/%s/%s_%s.png' % (z, x0, y0))
 
 def generate_tiles(level, x, y, dim):
-    if (dim < 1 or level > 3):
+    if (dim < 1 or level > 9):
         return
 
-    if (level in [3]):
+    if (level in [9]):
         concat_and_save(level, x, dim, y, dim)
-    print(level, x, dim, y, dim)
+    # print(level, x, dim, y, dim)
 
     dim2 = int(dim / 2)
     level1 = level + 1

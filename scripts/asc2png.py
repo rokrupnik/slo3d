@@ -12,7 +12,8 @@ start = time.time()
 
 dim = 1000
 bytes = []
-with open('../data/arso/TM1_%s_%s.asc' % (xname, yname), 'r') as ascfile:
+
+with open('./TM1_%s_%s.asc' % (xname, yname), 'r') as ascfile:
     csvreader = csv.reader(ascfile, delimiter=';')
 
     for x in range(dim):
@@ -28,16 +29,18 @@ with open('../data/arso/TM1_%s_%s.asc' % (xname, yname), 'r') as ascfile:
             bytes.append((z >> 8) & 255)
             bytes.append(z & 255)
 
-pixels = np.reshape(bytes, (dim, dim, 3))
-pixels = np.rot90(pixels)
-pixels = pixels.astype(np.uint8, copy=False)
+    pixels = np.reshape(bytes, (dim, dim, 3))
+    pixels = np.rot90(pixels)
+    pixels = pixels.astype(np.uint8, copy=False)
 
-for i in range(10, 0, -1):
-    im = Image.fromarray(pixels, mode='RGB')
-    im.save('../data/%s/%s_%s.png' % (i, xname, yname), 'PNG')
+    # Save smaller versions of the image for later concatination
+    for i in range(10, 0, -1):
+        im = Image.fromarray(pixels, mode='RGB')
+        im.save('../%s/%s_%s.png' % (i, xname, yname), 'PNG')
 
-    print(pixels.shape)
-    pixels = pixels[::2, ::2]
+        pixels = pixels[::2, ::2]
 
-end = time.time()
+    end = time.time()
 print(end - start)
+
+sys.exit()

@@ -6,19 +6,21 @@ var LOD = (function () {
      * Loads new data if camera is in the right position.
      */
     var update = function () {
-        if (!LOD.updateInProgress) {
+        if (!LOD.updateInProgress && !Data.loadingInProgress && !Texture.loadingInProgress) {
             LOD.updateInProgress = true;
             var nextLevel;
 
             //intersection = World.getViewIntersection();
 
-            if (camera.position.z < 3000)
-                nextLevel = 8;
-            else
+            if (camera.position.z < 16000)
                 nextLevel = 6;
+            else if (camera.position.z < 64000)
+                nextLevel = 4;
+            else
+                nextLevel = 2;
 
             if (nextLevel > LOD.level) {
-                console.log('LOD update');
+                console.log('LOD update. Level: ', nextLevel);
 
                 var x = controls.target.x,//intersection.point.x,
                     y = controls.target.y;//intersection.point.y;
@@ -38,12 +40,9 @@ var LOD = (function () {
                 LOD.level = nextLevel;
 
                 World.reset();
-
-                LOD.updateInProgress = false;
-            } else {
-                LOD.updateInProgress = false;
             }
 
+            LOD.updateInProgress = false;
         }
     };
 
@@ -65,7 +64,7 @@ var LOD = (function () {
 
     return {
         updateInProgress: false,
-        level: 6,
+        level: 2,
         update: update,
         getLevelDimension: getLevelDimension
     };

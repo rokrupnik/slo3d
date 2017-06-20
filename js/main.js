@@ -32,9 +32,9 @@ function init(heights, dataWidth, dataDepth, hmin, hmax) {
 
     //
 
-    camera.position.x = xOffset + worldHalfWidth;
-    camera.position.y = yOffset + 0;
-    camera.position.z = heights[ (dataWidth / 2) * dataWidth + (dataDepth / 2) ] + worldHalfDepth;
+    camera.position.x = xOffset + (0.43 * worldWidth);
+    camera.position.y = yOffset + (0.33 * worldDepth) - 1;
+    camera.position.z = heights[ (dataWidth / 2) * dataWidth + (dataDepth / 2) ] + 0.66 * worldDepth;
 
     camera.up.set( 0, 0, 1 );
 
@@ -45,7 +45,7 @@ function init(heights, dataWidth, dataDepth, hmin, hmax) {
     controls.dampingFactor = 1.0;
     controls.enableZoom = true;
 
-    controls.target = new THREE.Vector3( xOffset + worldHalfWidth, yOffset + worldHalfDepth, 0 );
+    controls.target = new THREE.Vector3( xOffset + (0.43 * worldWidth), yOffset + (0.33 * worldDepth), 0 );
 
     //
 
@@ -93,6 +93,14 @@ function init(heights, dataWidth, dataDepth, hmin, hmax) {
             var dx = xOffset + (w + 1)                          * widthScale;
             var dy = yOffset + (dataDepth - (d + 1))            * depthScale;
             var dz =               (heights[ ih + dataWidth + 1 ])  ;//* heightScale;
+
+            if (az == 0 && bz == 0 && cz == 0 && dz == 0) {
+                // Ignore areas without data
+                continue;
+            } else if (az > 2865 || bz > 2865 || cz > 2865 || dz > 2865) {
+                // Ignore areas with unrealistic heights
+                continue;
+            }
 
             // First triangle - mind the triangles orientation
             positions[ ipnc ]     = ax;

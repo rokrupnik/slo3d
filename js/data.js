@@ -112,6 +112,14 @@ var Data = (function () {
                     return false;
             }
 
+            if (az == 0 && bz == 0 && cz == 0 && dz == 0) {
+                // Ignore areas without data
+                return true;
+            } else if (az > 2865 || bz > 2865 || cz > 2865 || dz > 2865) {
+                // Ignore areas with unrealistic heights
+                return true;
+            }
+
             // First triangle - mind the triangles orientation
             Data.nextLevel.positions[ ipnc ]     = ax;
             Data.nextLevel.positions[ ipnc + 1 ] = ay;
@@ -218,11 +226,11 @@ var Data = (function () {
                     }
                 }
 
-                var allSquaresWereDrawn = false;
+                var allSquaresWereProcessed = false;
                 for (var i = 0; i < (rowSparseFactor / sparseFactor); i++) {
-                    allSquaresWereDrawn = drawSquare(w, d + i * sparseFactor, sparseFactor) || allSquaresWereDrawn;
+                    allSquaresWereProcessed = drawSquare(w, d + i * sparseFactor, sparseFactor) || allSquaresWereProcessed;
                 }
-                if (!allSquaresWereDrawn) {
+                if (!allSquaresWereProcessed) {
                     // Square was not drawn, because we are in next level area
                     skipW = Math.floor(Data.nextLevel.worldWidth / depthScale);
                     // Make it divisible by sparseFactor
@@ -260,6 +268,14 @@ var Data = (function () {
                 var dx = Data.nextLevel.xOffset + (w + 1)                          * widthScale;
                 var dy = Data.nextLevel.yOffset + (dataDepth - (d + 1))            * depthScale;
                 var dz =               (heights[ ih + dataWidth + 1 ])  ;//* heightScale;
+
+                if (az == 0 && bz == 0 && cz == 0 && dz == 0) {
+                    // Ignore areas without data
+                    continue;
+                } else if (az > 2865 || bz > 2865 || cz > 2865 || dz > 2865) {
+                    // Ignore areas with unrealistic heights
+                    continue;
+                }
 
                 // First triangle - mind the triangles orientation
                 Data.nextLevel.positions[ ipnc ]     = ax;
@@ -357,13 +373,16 @@ var Data = (function () {
 
         //detailedGeometry.computeBoundingSphere();
 
+        scene.remove(baseMesh);
+        if (detailedMesh != null) {
+            scene.remove(detailedMesh);
+        }
         detailedMesh = new THREE.Mesh( detailedGeometry, material );
         scene.add( detailedMesh );
-        scene.remove(baseMesh);
 
         Data.img = null;
 
-        LOD.updateInProgress = false;
+        Data.loadingInProgress = false;
         console.log('LOD update stop');
     };
 
@@ -470,13 +489,14 @@ var Data = (function () {
     };
 
     var loadData = function (level, x, y) {
+        Data.loadingInProgress = true;
         Data.img = new Image();
         Data.img.addEventListener("load", onDataLoad);
         Data.img.src = 'data/' + level + '/' + Math.floor(x / 1000) + '_' + Math.floor(y / 1000) + '.png';
     };
 
     return {
-        initialHeightMap: "data/6/412_98.png",
+        initialHeightMap: "data/2/374_31.png",
         img: null,
         hmin: 3000.0,
         hmax: -1,

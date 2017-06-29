@@ -29,7 +29,6 @@ var Controls = (function () {
         }
     };
 
-
     /**
      *  Target projection to z=0 plane when we stop panning
      */
@@ -77,9 +76,30 @@ var Controls = (function () {
         Controls.camera.up.set( 0, 0, 1 );
     };
 
+    var requestCounter = 0;
+    var preloader = document.getElementById('preloader');
+    var signalRequestStart = function () {
+        if (requestCounter == 0) {
+            preloader.style.display = 'flex';
+        }
+
+        requestCounter += 1;
+    }
+    var signalRequestEnd = function () {
+        requestCounter -= 1;
+
+        if (requestCounter == 0) {
+            preloader.style.display = 'none';
+            requestCounter = 0;
+        }
+    }
+
     return {
         camera: null,
         controls: null,
+
+        signalRequestStart: signalRequestStart,
+        signalRequestEnd: signalRequestEnd,
 
         initializeControls: initializeControls,
         initializeCamera: initializeCamera,

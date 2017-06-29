@@ -188,6 +188,7 @@ function init(heights, dataWidth, dataDepth, hmin, hmax) {
         }
 
         if (blockHasData) {
+            Controls.signalRequestStart();
             Texture.loader.load(
                 Texture.generateUrl(World.d96tm2d48gk([x0,y0]), World.d96tm2d48gk([x1,y1]), [128, 128], 'jpg'),
                 (function (x, y, positions, normals, uvs) {
@@ -225,7 +226,7 @@ function init(heights, dataWidth, dataDepth, hmin, hmax) {
                         World.scene.add( blockLod );
                         lods[x + '_' + y] = blockLod;
 
-                        // console.log('lod added', x, y);
+                        Controls.signalRequestEnd();
                     };
                 })(x0, y0, positions, normals, uvs)
             );

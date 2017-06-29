@@ -219,6 +219,7 @@ var Data = (function () {
             }
 
             if (blockHasData) {
+                Controls.signalRequestStart();
                 Texture.loader.load(
                     Texture.generateUrl(World.d96tm2d48gk([x0,y0]), World.d96tm2d48gk([x1,y1]), [dataTextureWidth, dataTextureDepth], 'jpg'),
                     (function (x, y, positions, normals, uvs) {
@@ -254,6 +255,8 @@ var Data = (function () {
                                     loadedLevels.push(blockMesh);
                                 }
                             }
+
+                            Controls.signalRequestEnd();
                         };
                     })(x0, y0, positions, normals, uvs)
                 );
@@ -276,6 +279,8 @@ var Data = (function () {
 
         Data.loadingInProgress = false;
         console.log('LOD update stop');
+
+        Controls.signalRequestEnd();
     };
 
     /**
@@ -381,6 +386,8 @@ var Data = (function () {
     };
 
     var loadData = function (level, x, y) {
+        Controls.signalRequestStart();
+
         Data.loadingInProgress = true;
         Data.img = new Image();
         Data.img.addEventListener("load", onDataLoad);

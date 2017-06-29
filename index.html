@@ -27,6 +27,23 @@
 				color: #a06851;
 			}
 
+			.crosshair {
+				position: fixed;
+				background: red;
+				display: none;
+			}
+			.crosshair.vertical {
+				top: 0;
+				left: 50%;
+				height: 100%;
+				width: 1px;
+			}
+			.crosshair.horizontal {
+				top: 50%;
+				height: 1px;
+				width: 100%;
+			}
+
 		</style>
 	</head>
 	<body>
@@ -36,6 +53,9 @@
             SLO3D - LIDAR visualisation demo based on <a href="http://threejs.org" target="_blank">three.js</a> - webgl terrain demo<br />
             (left click: pan, right click: rotate, mouse wheel: zoom)<br />
         </div>
+
+		<div class="crosshair vertical">&nbsp;</div>
+		<div class="crosshair horizontal">&nbsp;</div>
 
 		<script src="js/libs/three.min.js"></script>
 

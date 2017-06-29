@@ -74,18 +74,22 @@ var Texture = (function () {
         textureImg: null,
         xyTmp: [0,0],
         dimensionTmp: 2000,
+        loader: null,
+        generateUrl: generateUrl,
 
         init: function () {
-            Texture.canvas = document.createElement('canvas');
+            Texture.loader = new THREE.TextureLoader();
+            Texture.loader.setCrossOrigin('anonymous');
+            // Texture.canvas = document.createElement('canvas');
 
-            Texture.canvas.width = 4096;
-            Texture.canvas.height = 4096;
+            // Texture.canvas.width = 4096;
+            // Texture.canvas.height = 4096;
 
-            Texture.textureImg = new Image();
-            Texture.textureImg.addEventListener('load', onInitialTextureLoad);
-            Texture.textureImg.crossOrigin = 'anonymous';
+            // Texture.textureImg = new Image();
+            // Texture.textureImg.addEventListener('load', onInitialTextureLoad);
+            // Texture.textureImg.crossOrigin = 'anonymous';
 
-            Texture.textureImg.src = generateUrl(World.bbox.d48gk.xy0, World.bbox.d48gk.xy1, [2048, 2048], 'jpg');
+            // Texture.textureImg.src = generateUrl(World.bbox.d48gk.xy0, World.bbox.d48gk.xy1, [2048, 2048], 'jpg');
         }
     };
 })();

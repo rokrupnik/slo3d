@@ -19,11 +19,11 @@ var World = (function () {
     var getViewIntersection = function () {
         // target position in normalized device coordinates
         // (-1 to +1) for both components
-        targetOnScreen.x = 0;
-        targetOnScreen.y = 0;
+        World.targetOnScreen.x = 0;
+        World.targetOnScreen.y = 0;
 
-        rayCaster.setFromCamera(targetOnScreen, camera);
-        var intersects = rayCaster.intersectObject(baseMesh);
+        World.rayCaster.setFromCamera(World.targetOnScreen, Controls.camera);
+        var intersects = World.rayCaster.intersectObject(World.scene);
 
         if (intersects.length > 0)
             return intersects[0];
@@ -160,7 +160,23 @@ var World = (function () {
      */
     var d96tm2d48gk = function(xy) {
         return proj4(D96TM, D48GK, xy);
-    }
+    };
+
+    var initializeScene = function () {
+        World.scene = new THREE.Scene();
+
+        World.scene.add( new THREE.AmbientLight( 0x444444 ) );
+        var light1 = new THREE.DirectionalLight( 0xffffff, 1.0 );
+        light1.position.set( 1, 0, -1 );
+        World.scene.add( light1 );
+    };
+
+    var initializeRenderer = function () {
+        World.renderer = new THREE.WebGLRenderer();
+        World.renderer.setClearColor( 0xbfd1e5 );
+        World.renderer.setPixelRatio( window.devicePixelRatio );
+        World.renderer.setSize( window.innerWidth, window.innerHeight );
+    };
 
     return {
         bbox: {
@@ -173,11 +189,23 @@ var World = (function () {
                 xy1: [0, 0]
             }
         },
+        scene: null,
+        renderer: null,
+        targetOnScreen: null,
+        rayCaster: null,
         qt: null,
+
         searchQtree: searchQtree,
         reset: reset,
         d96tm2d48gk: d96tm2d48gk,
+        getViewIntersection: getViewIntersection,
+
+        initializeScene: initializeScene,
+        initializeRenderer: initializeRenderer,
         init: function () {
+            World.rayCaster = new THREE.Raycaster();
+            World.targetOnScreen = new THREE.Vector2();
+
             qt = buildQtree(xOffset, yOffset, worldWidth, worldDepth);//374000, 31000, 256000, 256000);//
 
             World.bbox.d48gk.xy0 = proj4(D96TM, D48GK, World.bbox.d96tm.xy0);

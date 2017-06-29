@@ -18,8 +18,11 @@
 
 			#info {
 				position: absolute;
-				top: 0px; width: 100%;
+				top: 0px;
 				padding: 5px;
+				left: 50%;
+				transform: translateX(-50%);
+				background: rgba(255, 255, 255, 0.58);
 			}
 
 			a {
@@ -51,7 +54,7 @@
 		<div id="container"><br /><br /><br /><br /><br />Loading world...</div>
 		<div id="info">
             SLO3D - LIDAR visualisation demo based on <a href="http://threejs.org" target="_blank">three.js</a> - webgl terrain demo<br />
-            (left click: pan, right click: rotate, mouse wheel: zoom)<br />
+            (left click: pan, right click: rotate, mouse wheel: zoom, Ctrl: enter VIEW MODE)<br />
         </div>
 
 		<div class="crosshair vertical">&nbsp;</div>

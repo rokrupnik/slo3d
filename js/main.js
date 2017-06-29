@@ -228,7 +228,12 @@ function init(heights, dataWidth, dataDepth, hmin, hmax) {
 
                         Controls.signalRequestEnd();
                     };
-                })(x0, y0, positions, normals, uvs)
+                })(x0, y0, positions, normals, uvs),
+                undefined,
+                function () {
+                    // Signal request end even if request fails
+                    Controls.signalRequestEnd();
+                }
             );
         }
 

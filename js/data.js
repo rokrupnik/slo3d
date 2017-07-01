@@ -423,9 +423,9 @@ var Data = (function () {
         loadData: loadData,
 
         init: function () {
-            Data.img = new Image();
-            Data.img.addEventListener("load", onInitialDataLoad);
-            Data.img.src = Data.initialHeightMap;
+            // Data.img = new Image();
+            // Data.img.addEventListener("load", onInitialDataLoad);
+            // Data.img.src = Data.initialHeightMap;
         }
     };
 

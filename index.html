@@ -160,11 +160,7 @@ void main()
 
 <!-- fragment shader a.k.a. pixel shader -->
 <script id="fragmentShader" type="x-shader/x-vertex">
-uniform sampler2D oceanTexture;
-uniform sampler2D sandyTexture;
-uniform sampler2D grassTexture;
-uniform sampler2D rockyTexture;
-uniform sampler2D snowyTexture;
+uniform sampler2D ortofotoTexture;
 
 varying vec2 vUV;
 
@@ -174,14 +170,8 @@ float color;
 
 void main()
 {
-    // where k = (height-minHeight) / (maxHeight-minHeight).
-    color = (vHeight - 0.0) / (2900.0 - 0.0);
-	// vec4 water = (smoothstep(0.01, 0.25, vHeight) - smoothstep(0.24, 0.26, vHeight)) * texture2D( oceanTexture, vUV * 10.0 );
-	// vec4 sandy = (smoothstep(0.24, 0.27, vHeight) - smoothstep(0.28, 0.31, vHeight)) * texture2D( sandyTexture, vUV * 10.0 );
-	// vec4 grass = (smoothstep(0.28, 0.32, vHeight) - smoothstep(0.35, 0.40, vHeight)) * texture2D( grassTexture, vUV * 20.0 );
-	// vec4 rocky = (smoothstep(0.30, 0.50, vHeight) - smoothstep(0.40, 0.70, vHeight)) * texture2D( rockyTexture, vUV * 20.0 );
-	// vec4 snowy = (smoothstep(0.50, 0.65, vHeight))                                   * texture2D( snowyTexture, vUV * 10.0 );
-	gl_FragColor = vec4(color, color, color, 1.0);// + water + sandy + grass + rocky + snowy; //, 1.0);
+	vec4 ortofoto = texture2D( ortofotoTexture, vUV );
+	gl_FragColor = ortofoto;
 }
 </script>
 <!-- ----------------------------------------------------------- -->

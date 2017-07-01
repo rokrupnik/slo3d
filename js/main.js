@@ -24,57 +24,63 @@ function init(heights, dataWidth, dataDepth, hmin, hmax) {
     Texture.loader.load(
         'data/2/374_31.png',
         function (bumpTexture) {
-            bumpTexture.wrapS = bumpTexture.wrapT = THREE.RepeatWrapping;
-            // magnitude of normal displacement
+            Texture.loader.load(
+                Texture.generateUrl(World.d96tm2d48gk([xOffset,yOffset]), World.d96tm2d48gk([xOffset + worldWidth,yOffset+worldDepth]), [2048, 2048], 'jpg'),
+                function (ortofotoTexture) {
+                    bumpTexture.wrapS = bumpTexture.wrapT = THREE.RepeatWrapping;
+                    // magnitude of normal displacement
 
-            var bumpScale   = 0.01;
+                    var bumpScale   = 0.01;
 
-            // use "this." to create global object
-            this.customUniforms = {
-                bumpTexture:	{ type: "t", value: bumpTexture },
-                bumpScale:	    { type: "f", value: bumpScale }
-            };
+                    // use "this." to create global object
+                    this.customUniforms = {
+                        bumpTexture:	{ type: "t", value: bumpTexture },
+                        ortofotoTexture:	{ type: "t", value: ortofotoTexture },
+                        bumpScale:	    { type: "f", value: bumpScale }
+                    };
 
-            // create custom material from the shader code above
-            //   that is within specially labelled script tags
-            var customMaterial = new THREE.ShaderMaterial(
-            {
-                uniforms: customUniforms,
-                vertexShader:   document.getElementById( 'vertexShader'   ).textContent,
-                fragmentShader: document.getElementById( 'fragmentShader' ).textContent
-            }   );
+                    // create custom material from the shader code above
+                    //   that is within specially labelled script tags
+                    var customMaterial = new THREE.ShaderMaterial(
+                    {
+                        uniforms: customUniforms,
+                        vertexShader:   document.getElementById( 'vertexShader'   ).textContent,
+                        fragmentShader: document.getElementById( 'fragmentShader' ).textContent
+                    }   );
 
-            var planeGeo = new THREE.PlaneGeometry( worldWidth, worldDepth, 512, 512 );
-            // Place origin at bottom left corner, rather than center
-            var m = new THREE.Matrix4();
-            m.makeTranslation( worldHalfWidth, worldHalfDepth, 0 );
-            planeGeo.applyMatrix( m );
+                    var planeGeo = new THREE.PlaneGeometry( worldWidth, worldDepth, 512, 512 );
+                    // Place origin at bottom left corner, rather than center
+                    var m = new THREE.Matrix4();
+                    m.makeTranslation( worldHalfWidth, worldHalfDepth, 0 );
+                    planeGeo.applyMatrix( m );
 
-            var plane = new THREE.Mesh(	planeGeo, customMaterial );
-            //plane.rotation.x = -Math.PI / 2;
-            plane.position.x = xOffset;
-            plane.position.y = yOffset;
-            World.scene.add( plane );
+                    var plane = new THREE.Mesh(	planeGeo, customMaterial );
+                    //plane.rotation.x = -Math.PI / 2;
+                    plane.position.x = xOffset;
+                    plane.position.y = yOffset;
+                    World.scene.add( plane );
 
-            // axes
+                    // axes
 
-            // var axes = new THREE.AxisHelper( worldDepth );
-            // World.scene.add( axes );
+                    // var axes = new THREE.AxisHelper( worldDepth );
+                    // World.scene.add( axes );
 
-            container.innerHTML = "";
+                    container.innerHTML = "";
 
-            container.appendChild( World.renderer.domElement );
+                    container.appendChild( World.renderer.domElement );
 
-            stats = new Stats();
-            container.appendChild( stats.dom );
+                    stats = new Stats();
+                    container.appendChild( stats.dom );
 
-            //
+                    //
 
-            window.addEventListener( 'resize', onWindowResize, false );
+                    window.addEventListener( 'resize', onWindowResize, false );
 
-            Controls.signalRequestEnd();
+                    Controls.signalRequestEnd();
 
-            animate();
+                    animate();
+                }
+            );
         }
     );
 }

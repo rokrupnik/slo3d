@@ -239,7 +239,7 @@ var Data = (function () {
                                 blockMaterial = new THREE.MeshLambertMaterial( {
                                     //side: THREE.DoubleSide ,
                                     //vertexColors: THREE.FaceColors,
-                                    shading: THREE.FlatShading,
+                                    shading: THREE.SmoothShading,
                                     map: texture
                                 } );
 

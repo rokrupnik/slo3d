@@ -205,7 +205,7 @@ function init(heights, dataWidth, dataDepth, hmin, hmax) {
                         blockMaterial = new THREE.MeshLambertMaterial( {
                             //side: THREE.DoubleSide ,
                             //vertexColors: THREE.FaceColors,
-                            shading: THREE.FlatShading,
+                            shading: THREE.SmoothShading,
                             map: texture
                         } );
 

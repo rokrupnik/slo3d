@@ -31,10 +31,10 @@ var Texture = (function () {
      * Callback to handle the next level ortofoto texture, when it loads.
      */
     var onTextureLoad = function () {
-        var xPx = Math.floor(((Texture.xyTmp[0] - xOffset) / worldWidth) * 4096),
-            yPx = Math.floor((1 - ((Texture.xyTmp[1] + Texture.dimensionTmp - yOffset) / worldDepth)) * 4096),
-            widthPx = Math.floor((Texture.dimensionTmp / worldWidth) * 4096),
-            depthPx = Math.floor((Texture.dimensionTmp / worldDepth) * 4096);
+        var xPx = Math.floor(((Texture.xyTmp[0] - World.offset.x) / World.size.x) * 4096),
+            yPx = Math.floor((1 - ((Texture.xyTmp[1] + Texture.dimensionTmp - World.offset.y) / World.size.y)) * 4096),
+            widthPx = Math.floor((Texture.dimensionTmp / World.size.x) * 4096),
+            depthPx = Math.floor((Texture.dimensionTmp / World.size.y) * 4096);
 
         Texture.context.drawImage(Texture.textureImg, xPx, yPx, widthPx, depthPx);
 

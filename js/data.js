@@ -7,11 +7,11 @@ var Data = (function () {
         Data.baseLevel = {
             heights: worldData,
             dataWidth: Data.img.width,
-            xOffset: xOffset,
-            yOffset: yOffset,
+            xOffset: World.offset.x,
+            yOffset: World.offset.y,
             level: 6,
-            worldWidth: worldWidth,
-            worldDepth: worldDepth
+            worldWidth: World.size.x,
+            worldDepth: World.size.y
         };
 
         Data.loadingInProgress = false;

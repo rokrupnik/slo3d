@@ -99,6 +99,7 @@
 <!-- ---------------- Custom Shader Code ------------------------ -->
 <script id="vertexShader" type="x-shader/x-vertex">
 uniform vec3 uGlobalOffset;
+uniform vec2 uCameraOffset;
 uniform sampler2D uHeightData;
 uniform vec2 uTileOffset;
 uniform float uScale;
@@ -119,7 +120,7 @@ float height;
 float getHeight(vec3 p) {
   // Assume a 1024x1024 world
   //float lod = 0.0;//log2(uScale) - 6.0;
-  vec2 st = (p.xy / WORLD_WIDTH) - 0.5;
+  vec2 st = ((p.xy + uCameraOffset) / WORLD_WIDTH) - 0.5;
 
   vec4 heightData = texture2D( uHeightData, st );
 
@@ -131,15 +132,15 @@ void main()
 	// Move into correct place
 	vPosition = uScale * position + vec3(uTileOffset, 0.0);
 
-	height = getHeight(vPosition);
-
-	vST = (vPosition.xy / WORLD_WIDTH) + 0.5;
-
-	vPosition += uGlobalOffset;
-
 	// Snap to grid
 	float grid = uScale / TILE_RESOLUTION;
 	vPosition = floor(vPosition / grid) * grid;
+
+	height = getHeight(vPosition);
+
+	vST = ((vPosition.xy + uCameraOffset) / WORLD_WIDTH) + 0.5;
+
+	vPosition += uGlobalOffset;
 
 	// move the position along the normal
     vPosition = vPosition + normal * height;

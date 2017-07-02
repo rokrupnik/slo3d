@@ -49,7 +49,8 @@ var Controls = (function () {
             xt = kz * (xt - xc) + xc;
             yt = kz * (yt - yc) + yc;
 
-            if (xOffset < xt && xt < (xOffset + worldWidth) && yOffset < yt && yt < (yOffset + worldDepth)) {
+            // Only change target coordinates if they are inside the World.size dimensions, centered at the camera
+            if ((xc - World.size.x/2) < xt && xt < (xc + World.size.x/2) && (yc - World.size.y/2) < yt && yt < (yc + World.size.y/2)) {
                 Controls.controls.target.x = xt;
                 Controls.controls.target.y = yt;
                 Controls.controls.target.z = 0;
@@ -58,7 +59,7 @@ var Controls = (function () {
     };
 
     var initializeCamera = function (x, y, z) {
-        Controls.camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, worldDepth + worldHalfDepth );
+        Controls.camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, World.size.y + World.size.y/2 );
 
         Controls.camera.position.x = x;
         Controls.camera.position.y = y;
@@ -112,29 +113,3 @@ var Controls = (function () {
 })();
 
 Controls.init();
-
-
-// Movement restrictions
-
-// var onmousewheel = function(event) {
-//     var delta = event.detail ? event.detail*(-120) : event.wheelDelta;
-
-//     // When zooming under 3000 meters, check if we are too close to terrain and disable zoom if we are
-//     if (delta > 0) {
-//         if (camera.position.z < 2900 && controls.enableZoom) {
-//             var heightBelowCamera = Map.getHeightAtPosition(camera.position.x, camera.position.y);
-
-//             // if (intersection.distance < 1000) {
-//             //     controls.enableZoom = false;
-//             // }
-//         }
-//     } else {
-//         // Enable zoom if zooming out
-//         if (!controls.enableZoom)
-//             controls.enableZoom = true;
-//     }
-
-// };
-
-// document.addEventListener( 'mousewheel', onmousewheel, false );
-// document.addEventListener( 'DOMMouseScroll', onmousewheel, false ); // firefox

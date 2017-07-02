@@ -21,9 +21,9 @@ function init(heights, dataWidth, dataDepth, hmin, hmax) {
     World.initializeRenderer();
 
     Controls.initializeCamera(
-        0,//xOffset + worldHalfWidth,//xOffset + (0.43 * worldWidth),//
-        0,//yOffset + worldHalfDepth,//yOffset + (0.33 * worldDepth),//
-        50000//worldDepth + worldHalfDepth
+        World.center.x,//World.offset.x + (0.43 * World.size.x),//0,//
+        World.center.y,//World.offset.y + (0.33 * World.size.y),//0,//
+        World.size.y
     );
 
     Controls.initializeControls();
@@ -35,27 +35,36 @@ function init(heights, dataWidth, dataDepth, hmin, hmax) {
         'data/2/374_31.png',
         function (bumpTexture) {
             Texture.loader.load(
-                Texture.generateUrl(World.d96tm2d48gk([xOffset,yOffset]), World.d96tm2d48gk([(xOffset + worldWidth),(yOffset+worldDepth)]), [2048, 2048], 'jpg'),
+                Texture.generateUrl(World.d96tm2d48gk([World.offset.x,World.offset.y]), World.d96tm2d48gk([(World.offset.x + World.size.x),(World.offset.y+World.size.y)]), [2048, 2048], 'jpg'),
                 function (ortofotoTexture) {
 
                     var createTile = function ( x, y, scale, edgeMorph ) {
-                        var terrainMaterial = createTerrainMaterial( bumpTexture,
-                                                                        globalOffset,
-                                                                        new THREE.Vector2( x, y ),
-                                                                        scale,
-                                                                        resolution,
-                                                                        edgeMorph );
+                        var terrainMaterial = createTerrainMaterial(
+                            bumpTexture,
+                            World.center,
+                            World.cameraOffset,
+                            new THREE.Vector2( x, y ),
+                            scale,
+                            resolution,
+                            edgeMorph
+                        );
                         var plane = new THREE.Mesh( tileGeometry, terrainMaterial );
-                        World.scene.add( plane );
+
+                        // Disable frustum culling to prevent the mesh from dissappearing at certain angles
+                        // See: https://stackoverflow.com/questions/21184061/mesh-suddenly-disappears-in-three-js-clipping
+                        plane.frustumCulled = false;
+
+                        World.terrain.add( plane );
                     };
 
-                    var createTerrainMaterial = function( heightData, globalOffset, offset, scale, resolution, edgeMorph ) {
+                    var createTerrainMaterial = function( heightData, globalOffset, cameraOffset, offset, scale, resolution, edgeMorph ) {
                         // Is it bad to change this for every tile?
                         //terrainVert.define( "TILE_RESOLUTION", resolution.toFixed(1) );
                         return new THREE.ShaderMaterial( {//THREE.MeshLambertMaterial({//
                             uniforms: {
                                 uEdgeMorph: { type: "i", value: edgeMorph },
                                 uGlobalOffset: { type: "v3", value: globalOffset },
+                                uCameraOffset: { type: "v2", value: cameraOffset },
                                 uHeightData: { type: "t", value: heightData },
                                 //uGrass: { type: "t", value: texture.grass },
                                 uOrtoFoto: { type: "t", value: ortofotoTexture },
@@ -65,8 +74,7 @@ function init(heights, dataWidth, dataDepth, hmin, hmax) {
                             },
                             vertexShader: document.getElementById( 'vertexShader'   ).textContent,
                             fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
-                            //transparent: true
-                            //wireframe: true
+                            wireframe: true
                         } );
                     };
 
@@ -77,7 +85,7 @@ function init(heights, dataWidth, dataDepth, hmin, hmax) {
 
                     // Offset is used to re-center the terrain, this way we get the greates detail
                     // nearest to the camera. In the future, should calculate required detail level per tile
-                    var globalOffset = new THREE.Vector3( 0, 0, 0); //xOffset + worldHalfWidth, yOffset + worldHalfDepth, 0 );//
+                    World.cameraOffset = new THREE.Vector2(0, 0);
 
                     // Create geometry that we'll use for each tile, just a standard plane
                     var tileGeometry = new THREE.PlaneGeometry( 1, 1, resolution, resolution );
@@ -87,7 +95,7 @@ function init(heights, dataWidth, dataDepth, hmin, hmax) {
                     tileGeometry.applyMatrix( m );
 
                     // Create collection of tiles to fill required space
-                    var initialScale = worldWidth / Math.pow( 2, levels );
+                    var initialScale = World.size.x / Math.pow( 2, levels );
 
                     // Create center layer first
                     //    +---+---+
@@ -112,7 +120,7 @@ function init(heights, dataWidth, dataDepth, hmin, hmax) {
                     // +---+---+---+---+
                     // | A | A | A | A |
                     // +---+---+---+---+
-                    for (var scale = initialScale; 4 * scale <= worldWidth; scale *= 2) {
+                    for (var scale = initialScale; scale < World.size.x; scale *= 2) {
                         createTile( -2 * scale, -2 * scale, scale, Edge.BOTTOM | Edge.LEFT );
                         createTile( -2 * scale, -scale, scale, Edge.LEFT );
                         createTile( -2 * scale, 0, scale, Edge.LEFT );
@@ -135,9 +143,12 @@ function init(heights, dataWidth, dataDepth, hmin, hmax) {
                         // tileGeometry = new THREE.PlaneGeometry( 1, 1, resolution, resolution );
                     }
 
+                    World.scene.add(World.terrain);
+                    console.log(World.terrain.position);
+
                     // axes
 
-                    // var axes = new THREE.AxisHelper( worldDepth );
+                    // var axes = new THREE.AxisHelper( World.size.y );
                     // World.scene.add( axes );
 
                     container.innerHTML = "";
@@ -161,58 +172,42 @@ function init(heights, dataWidth, dataDepth, hmin, hmax) {
 }
 
 function onWindowResize() {
-
     Controls.camera.aspect = window.innerWidth / window.innerHeight;
     Controls.camera.updateProjectionMatrix();
 
     World.renderer.setSize( window.innerWidth, window.innerHeight );
-
 }
 
 //
 
 function animate() {
-
     requestAnimationFrame( animate );
 
     render();
     stats.update();
 
     //LOD.update();
-
 }
 
-// var raycastCounter = 0;
 function render() {
-    // World.targetOnScreen.x = 0;
-    // World.targetOnScreen.y = 0;
-
-    // World.rayCaster.setFromCamera(World.targetOnScreen, Controls.camera);
-    //console.log(Controls.controls.target, Controls.camera.position);
-
     Controls.controls.update( clock.getDelta() );
 
-    // World.scene.updateMatrixWorld();
-    // World.scene.traverse( function ( object ) {
+    if (
+        World.terrain.position.x !== (Controls.controls.target.x - World.center.x) ||
+        World.terrain.position.y !== (Controls.controls.target.y - World.center.y)
+    ) {
+        World.terrain.position.x = Controls.controls.target.x - World.center.x;
+        World.terrain.position.y = Controls.controls.target.y - World.center.y;
 
-    //     if ( object instanceof THREE.LOD ) {
-
-    //         object.update( Controls.camera );
-
-    //         // if (raycastCounter == 0) {
-    //         //     var intersects  = World.rayCaster.intersectObject(object);
-    //         //     if (intersects.length > 0)
-    //         //         console.log(object.id, intersects[0]);
-    //         // }
-
-    //     }
-
-    // } );
-
-    // raycastCounter = (raycastCounter + 1) % 20;
+        // Update camera offset in shaders
+        World.cameraOffset.x = World.terrain.position.x;
+        World.cameraOffset.y = World.terrain.position.y;
+        for(var i = 0; i < World.terrain.children.length; i++) {
+            World.terrain.children[i].material.uniforms.uCameraOffset.value = World.cameraOffset;
+        }
+    }
 
     World.renderer.render( World.scene, Controls.camera );
-
 }
 
 init();

@@ -174,28 +174,23 @@ var World = (function () {
     var initializeRenderer = function () {
         World.renderer = new THREE.WebGLRenderer();
         World.renderer.setClearColor( 0xbfd1e5 );
-        World.renderer.sortObjects = false;
-        //World.renderer.autoClear = false;
         World.renderer.setPixelRatio( window.devicePixelRatio );
         World.renderer.setSize( window.innerWidth, window.innerHeight );
     };
 
     return {
-        bbox: {
-            d96tm: {
-                xy0: [xOffset, yOffset],
-                xy1: [xOffset + worldWidth, yOffset + worldDepth]
-            },
-            d48gk: {
-                xy0: [0, 0],
-                xy1: [0, 0]
-            }
-        },
+        bbox: null,
         scene: null,
         renderer: null,
-        targetOnScreen: null,
-        rayCaster: null,
+        targetOnScreen: new THREE.Vector2(),
+        rayCaster: new THREE.Raycaster(),
+        terrain: new THREE.Group(),
         qt: null,
+
+        offset: new THREE.Vector3(374000, 31000, 0),
+        cameraOffset: null,
+        size: new THREE.Vector3(256000, 256000),
+        center: null,
 
         searchQtree: searchQtree,
         reset: reset,
@@ -205,10 +200,20 @@ var World = (function () {
         initializeScene: initializeScene,
         initializeRenderer: initializeRenderer,
         init: function () {
-            World.rayCaster = new THREE.Raycaster();
-            World.targetOnScreen = new THREE.Vector2();
+            qt = buildQtree(World.offset.x, World.offset.y, World.size.x, World.size.y);
 
-            qt = buildQtree(xOffset, yOffset, worldWidth, worldDepth);//374000, 31000, 256000, 256000);//
+            World.center = new THREE.Vector3(World.offset.x + World.size.x/2, World.offset.y + World.size.y/2, 0);
+
+            World.bbox = {
+                d96tm: {
+                    xy0: [World.offset.x, World.offset.y],
+                    xy1: [World.offset.x + World.size.x, World.offset.y + World.size.y]
+                },
+                d48gk: {
+                    xy0: [0, 0],
+                    xy1: [0, 0]
+                }
+            };
 
             World.bbox.d48gk.xy0 = proj4(D96TM, D48GK, World.bbox.d96tm.xy0);
             World.bbox.d48gk.xy1 = proj4(D96TM, D48GK, World.bbox.d96tm.xy1);

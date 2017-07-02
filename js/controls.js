@@ -49,12 +49,22 @@ var Controls = (function () {
             xt = kz * (xt - xc) + xc;
             yt = kz * (yt - yc) + yc;
 
-            if (374000 < xt && xt < 630000 && 31000 < yt && yt < 164000) {
+            if (xOffset < xt && xt < (xOffset + worldWidth) && yOffset < yt && yt < (yOffset + worldDepth)) {
                 Controls.controls.target.x = xt;
                 Controls.controls.target.y = yt;
                 Controls.controls.target.z = 0;
             }
         }
+    };
+
+    var initializeCamera = function (x, y, z) {
+        Controls.camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, worldDepth + worldHalfDepth );
+
+        Controls.camera.position.x = x;
+        Controls.camera.position.y = y;
+        Controls.camera.position.z = z;
+
+        Controls.camera.up.set( 0, 0, 1 );
     };
 
     var initializeControls = function () {
@@ -63,17 +73,7 @@ var Controls = (function () {
         // Controls.controls.dampingFactor = 1.0;
         Controls.controls.enableZoom = true;
 
-        Controls.controls.target = new THREE.Vector3( xOffset + (0.43 * worldWidth), yOffset + (0.33 * worldDepth), 0 );
-    };
-
-    var initializeCamera = function (x, y, z) {
-        Controls.camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 2000000 );
-
-        Controls.camera.position.x = x;
-        Controls.camera.position.y = y;
-        Controls.camera.position.z = z;
-
-        Controls.camera.up.set( 0, 0, 1 );
+        Controls.controls.target = new THREE.Vector3( Controls.camera.position.x, Controls.camera.position.y + 0.0001, 0 );
     };
 
     var requestCounter = 0;

@@ -174,6 +174,8 @@ var World = (function () {
     var initializeRenderer = function () {
         World.renderer = new THREE.WebGLRenderer();
         World.renderer.setClearColor( 0xbfd1e5 );
+        World.renderer.sortObjects = false;
+        //World.renderer.autoClear = false;
         World.renderer.setPixelRatio( window.devicePixelRatio );
         World.renderer.setSize( window.innerWidth, window.innerHeight );
     };

@@ -96,5 +96,35 @@
 		<script src="js/lod.js"></script>
 		<script src="js/main.js"></script>
 
+<!-- ---------------- Custom Shader Code ------------------------ -->
+<script id="vertexShader" type="x-shader/x-vertex">
+varying vec2 vUV;
+
+void main()
+{
+	vUV = uv;
+
+	gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+}
+</script>
+
+<!-- fragment shader a.k.a. pixel shader -->
+<script id="fragmentShader" type="x-shader/x-vertex">
+uniform sampler2D uOrtoFoto;
+
+varying vec2 vUV;
+
+vec4 color;
+
+void main()
+{
+	color = texture2D( uOrtoFoto, vUV );
+  	//color = vec4( 0.0, 0.0, 0.0, 1.0);
+
+	gl_FragColor = color;
+}
+</script>
+<!-- ----------------------------------------------------------- -->
+
 	</body>
 </html>

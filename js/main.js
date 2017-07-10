@@ -189,50 +189,61 @@ function init(heights, dataWidth, dataDepth, hmin, hmax) {
 
         if (blockHasData) {
             Controls.signalRequestStart();
+            var handleLoadedTexture = function (x, y, positions, normals, uvs) {
+                return function (texture) {
+                    // Create mesh and lod and add them to the scene
+                    blockGeometry = new THREE.BufferGeometry();
+                    blockGeometry.setIndex( new THREE.BufferAttribute( indices, 1 ) );
+                    blockGeometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
+                    blockGeometry.addAttribute( 'normal', new THREE.BufferAttribute( normals, 3, true ) );
+                    blockGeometry.addAttribute( 'uv', new THREE.BufferAttribute( uvs, 2 ) );
+                    //blockGeometry = new THREE.PlaneGeometry( blockWidth, blockDepth, dataBlockWidth, dataBlockDepth );
+
+                    texture.flipY = false;
+                    blockMaterial = new THREE.ShaderMaterial({
+                            uniforms: {
+                                uOrtoFoto: { value: texture }
+                            },
+                            vertexShader: document.getElementById( 'vertexShader'   ).textContent,
+                            fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
+                            //wireframe: true
+                    });
+
+                    blockLod = new THREE.LOD();
+
+                    blockMesh = new THREE.Mesh( blockGeometry, blockMaterial );
+                    // blockMesh.scale.set( 1.5, 1.5, 1.5 );
+                    blockMesh.updateMatrix();
+                    blockMesh.matrixAutoUpdate = false;
+                    blockLod.addLevel( blockMesh, 64000 );
+
+                    blockLod.position.x = x + (blockWidth / 2);
+                    blockLod.position.y = y + (blockDepth / 2);
+                    blockLod.position.z = 0;
+                    blockLod.updateMatrix();
+                    blockLod.matrixAutoUpdate = false;
+
+                    World.scene.add( blockLod );
+                    lods[x + '_' + y] = blockLod;
+
+                    Controls.signalRequestEnd();
+                };
+            };
             Texture.loader.load(
                 Texture.generateUrl(World.d96tm2d48gk([x0,y0]), World.d96tm2d48gk([x1,y1]), [128, 128], 'jpg'),
-                (function (x, y, positions, normals, uvs) {
-                    return function (texture) {
-                        // Create mesh and lod and add them to the scene
-                        blockGeometry = new THREE.BufferGeometry();
-                        blockGeometry.setIndex( new THREE.BufferAttribute( indices, 1 ) );
-                        blockGeometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
-                        blockGeometry.addAttribute( 'normal', new THREE.BufferAttribute( normals, 3, true ) );
-                        blockGeometry.addAttribute( 'uv', new THREE.BufferAttribute( uvs, 2 ) );
-                        //blockGeometry = new THREE.PlaneGeometry( blockWidth, blockDepth, dataBlockWidth, dataBlockDepth );
-
-                        texture.flipY = false;
-                        blockMaterial = new THREE.MeshLambertMaterial( {
-                            //side: THREE.DoubleSide ,
-                            //vertexColors: THREE.FaceColors,
-                            shading: THREE.SmoothShading,
-                            map: texture
-                        } );
-
-                        blockLod = new THREE.LOD();
-
-                        blockMesh = new THREE.Mesh( blockGeometry, blockMaterial );
-                        // blockMesh.scale.set( 1.5, 1.5, 1.5 );
-                        blockMesh.updateMatrix();
-                        blockMesh.matrixAutoUpdate = false;
-                        blockLod.addLevel( blockMesh, 64000 );
-
-                        blockLod.position.x = x + (blockWidth / 2);
-                        blockLod.position.y = y + (blockDepth / 2);
-                        blockLod.position.z = 0;
-                        blockLod.updateMatrix();
-                        blockLod.matrixAutoUpdate = false;
-
-                        World.scene.add( blockLod );
-                        lods[x + '_' + y] = blockLod;
-
-                        Controls.signalRequestEnd();
-                    };
-                })(x0, y0, positions, normals, uvs),
+                handleLoadedTexture(x0, y0, positions, normals, uvs),
                 undefined,
                 function () {
-                    // Signal request end even if request fails
-                    Controls.signalRequestEnd();
+                    // Retry                    
+                    Texture.loader.load(
+                        Texture.generateUrl(World.d96tm2d48gk([x0,y0]), World.d96tm2d48gk([x1,y1]), [128, 128], 'jpg'),
+                        handleLoadedTexture(x0, y0, positions, normals, uvs),
+                        undefined,
+                        function () {
+                            // Signal request end even if request fails
+                            Controls.signalRequestEnd();
+                        }
+                    );
                 }
             );
         }

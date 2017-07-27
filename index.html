@@ -87,12 +87,17 @@
 
 		<script src="js/libs/proj4.js"></script>
 
+		<script src="https://cdn.jsdelivr.net/lodash/4.17.4/lodash.min.js"></script>
+
+		<!--<script src="https://cdn.jsdelivr.net/jquery/3.2.1/jquery.min.js"></script>
+		<script src="js/libs/jquery.mousewheel.min.js"></script>-->
+
         <!-- CUSTOM JS -->
 		<script src="js/globals.js"></script>
 		<script src="js/controls.js"></script>
 		<script src="js/world.js"></script>
 		<script src="js/texture.js"></script> <!-- Depends on world.js -->
-		<script src="js/data.js"></script>
+		<!--<script src="js/data.js"></script>-->
 		<script src="js/lod.js"></script>
 		<script src="js/main.js"></script>
 
@@ -100,47 +105,88 @@
 <script id="vertexShader" type="x-shader/x-vertex">
 uniform vec3 uGlobalOffset;
 uniform vec2 uCameraOffset;
-uniform sampler2D uHeightData;
 uniform vec2 uTileOffset;
 uniform float uScale;
+uniform sampler2D uHeightMap2;
+uniform sampler2D uHeightMap4;
+uniform sampler2D uHeightMap6;
+uniform sampler2D uHeightMap8;
+uniform vec3 uLevelOffset2;
+uniform vec3 uLevelOffset4;
+uniform vec3 uLevelOffset6;
+uniform vec3 uLevelOffset8;
 
 varying vec3 vNormal;
 varying vec3 vPosition;
-varying vec2 vST;
 varying float vMorphFactor;
 
 float height;
 
-// Number of vertices along edge of tile
-#define TILE_RESOLUTION 32.0
-
 #define HEIGHT_SCALE 0.01
-#define WORLD_WIDTH 256000.0
 
 float getHeight(vec3 p) {
   // Assume a 1024x1024 world
   //float lod = 0.0;//log2(uScale) - 6.0;
-  vec2 st = ((p.xy + uCameraOffset) / WORLD_WIDTH) - 0.5;
+  vec2 st;
+  vec4 heightData;
 
-  vec4 heightData = texture2D( uHeightData, st );
+  // Try to get a hit in a heightmap, start with the best until the worst
+  // We found data if st coordinates are between 0,0 and 1,1
+//  st = (((p - uLevelOffset8).xy + uCameraOffset) / float(LEVEL8_WIDTH));
+//  if (
+//	  all(lessThan(vec2(0.0, 0.0), st)) &&
+//	  all(lessThan(st, vec2(1.0, 1.0)))
+//  ) {
+//	heightData = texture2D( uHeightMap8, st );
+//
+//	return HEIGHT_SCALE * dot(heightData, vec4(16711680.0, 65280.0, 255.0, 0.0));
+//  }
+//
+//  st = (((p - uLevelOffset6).xy + uCameraOffset) / float(LEVEL6_WIDTH));
+//  if (
+//	  all(lessThan(vec2(0.0, 0.0), st)) &&
+//	  all(lessThan(st, vec2(1.0, 1.0)))
+//  ) {
+//	heightData = texture2D( uHeightMap6, st );
+//
+//	return HEIGHT_SCALE * dot(heightData, vec4(16711680.0, 65280.0, 255.0, 0.0));
+//  }
+//
+//  st = (((p - uLevelOffset4).xy + uCameraOffset) / float(LEVEL4_WIDTH));
+//  if (
+//	  all(lessThan(vec2(0.0, 0.0), st)) &&
+//	  all(lessThan(st, vec2(1.0, 1.0)))
+//  ) {
+//	heightData = texture2D( uHeightMap4, st );
+//
+//	return HEIGHT_SCALE * dot(heightData, vec4(16711680.0, 65280.0, 255.0, 0.0));
+//  }
 
-  return HEIGHT_SCALE * dot(heightData, vec4(16711680.0, 65280.0, 255.0, 0.0));
+  st = (((p - uLevelOffset2).xy + uCameraOffset) / float(LEVEL2_WIDTH));
+  if (
+	  all(lessThan(vec2(0.0, 0.0), st)) &&
+	  all(lessThan(st, vec2(1.0, 1.0)))
+  ) {
+	heightData = texture2D( uHeightMap2, st );
+
+	return HEIGHT_SCALE * dot(heightData, vec4(16711680.0, 65280.0, 255.0, 0.0));
+  }
+
+  return 0.0;
 }
 
 void main()
 {
 	// Move into correct place
-	vPosition = uScale * position + vec3(uTileOffset, 0.0);
+	vPosition = uScale * position + vec3(uTileOffset, 0.0) + uGlobalOffset;
 
 	// Snap to grid
-	float grid = uScale / TILE_RESOLUTION;
-	vPosition = floor(vPosition / grid) * grid;
+	//float grid = uScale / float(TILE_RESOLUTION);
+	//vPosition = floor(vPosition / grid) * grid;
 
 	height = getHeight(vPosition);
 
-	vST = ((vPosition.xy + uCameraOffset) / WORLD_WIDTH) + 0.5;
-
-	vPosition += uGlobalOffset;
+	//vPosition += uGlobalOffset;
 
 	// move the position along the normal
     vPosition = vPosition + normal * height;
@@ -151,16 +197,67 @@ void main()
 
 <!-- fragment shader a.k.a. pixel shader -->
 <script id="fragmentShader" type="x-shader/x-vertex">
-uniform sampler2D uOrtoFoto;
+uniform vec2 uCameraOffset;
+uniform sampler2D uOrtoFoto2;
+uniform sampler2D uOrtoFoto4;
+uniform sampler2D uOrtoFoto6;
+uniform sampler2D uOrtoFoto8;
+uniform vec3 uLevelOffset2;
+uniform vec3 uLevelOffset4;
+uniform vec3 uLevelOffset6;
+uniform vec3 uLevelOffset8;
 
-varying vec2 vST;
+varying vec3 vPosition;
 
-//varying float vHeight;
+vec4 getColor(vec3 p) {
+  // Assume a 1024x1024 world
+  //float lod = 0.0;//log2(uScale) - 6.0;
+  vec2 st;
+
+  // Try to get a hit in a heightmap, start with the best until the worst
+  // We found data if st coordinates are between 0,0 and 1,1
+  st = (((p - uLevelOffset8).xy + uCameraOffset) / float(LEVEL8_WIDTH));
+  if (
+	  all(lessThan(vec2(0.0, 0.0), st)) &&
+	  all(lessThan(st, vec2(1.0, 1.0)))
+  ) {
+	return texture2D( uOrtoFoto8, st );
+  	//return vec4( 0.0, 0.0, 0.0, 1.0);
+  }
+
+  st = (((p - uLevelOffset6).xy + uCameraOffset) / float(LEVEL6_WIDTH));
+  if (
+	  all(lessThan(vec2(0.0, 0.0), st)) &&
+	  all(lessThan(st, vec2(1.0, 1.0)))
+  ) {
+	return texture2D( uOrtoFoto6, st );
+  	//return vec4( 0.0, 0.0, 1.0, 1.0);
+  }
+
+  st = (((p - uLevelOffset4).xy + uCameraOffset) / float(LEVEL4_WIDTH));
+  if (
+	  all(lessThan(vec2(0.0, 0.0), st)) &&
+	  all(lessThan(st, vec2(1.0, 1.0)))
+  ) {
+	return texture2D( uOrtoFoto4, st );
+  	//return vec4( 1.0, 1.0, 0.0, 1.0);
+  }
+
+  st = (((p - uLevelOffset2).xy + uCameraOffset) / float(LEVEL2_WIDTH));
+  if (
+	  all(lessThan(vec2(0.0, 0.0), st)) &&
+	  all(lessThan(st, vec2(1.0, 1.0)))
+  ) {
+	return texture2D( uOrtoFoto2, st );
+  	//return vec4( 1.0, 0.0, 0.0, 1.0);
+  }
+
+  return vec4( 0.749, 0.82, 0.899, 1.0);
+}
 
 void main()
 {
-	vec4 ortofoto = texture2D( uOrtoFoto, vST );
-	gl_FragColor = ortofoto;
+	gl_FragColor = getColor(vPosition);
 }
 </script>
 <!-- ----------------------------------------------------------- -->

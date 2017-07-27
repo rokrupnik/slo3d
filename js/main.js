@@ -10,11 +10,7 @@ var Edge = {
     RIGHT: 8
 };
 
-function init(heights, dataWidth, dataDepth, hmin, hmax) {
-    Data.img = null;
-
-    // worldDataWidth = dataWidth;
-    // worldDataDepth = dataDepth;
+function init() {
 
     World.initializeScene();
 
@@ -33,14 +29,13 @@ function init(heights, dataWidth, dataDepth, hmin, hmax) {
     Controls.signalRequestStart();
     Texture.loader.load(
         'data/2/374_31.png',
-        function (bumpTexture) {
+        function (initialHeightMap) {
             Texture.loader.load(
-                Texture.generateUrl(World.d96tm2d48gk([World.offset.x,World.offset.y]), World.d96tm2d48gk([(World.offset.x + World.size.x),(World.offset.y+World.size.y)]), [2048, 2048], 'jpg'),
-                function (ortofotoTexture) {
-
+                Texture.generateUrl([World.offset.x,World.offset.y], [(World.offset.x + World.size.x),(World.offset.y+World.size.y)], [2048, 2048]),
+                function (ortoFotoTexture) {
                     var createTile = function ( x, y, scale, edgeMorph ) {
                         var terrainMaterial = createTerrainMaterial(
-                            bumpTexture,
+                            initialHeightMap,
                             World.center,
                             World.cameraOffset,
                             new THREE.Vector2( x, y ),
@@ -57,28 +52,41 @@ function init(heights, dataWidth, dataDepth, hmin, hmax) {
                         World.terrain.add( plane );
                     };
 
-                    var createTerrainMaterial = function( heightData, globalOffset, cameraOffset, offset, scale, resolution, edgeMorph ) {
-                        // Is it bad to change this for every tile?
-                        //terrainVert.define( "TILE_RESOLUTION", resolution.toFixed(1) );
-                        return new THREE.ShaderMaterial( {//THREE.MeshLambertMaterial({//
+                    var createTerrainMaterial = function( heightMap, globalOffset, cameraOffset, offset, scale, resolution, edgeMorph ) {
+                        return new THREE.ShaderMaterial({
                             uniforms: {
-                                uEdgeMorph: { type: "i", value: edgeMorph },
-                                uGlobalOffset: { type: "v3", value: globalOffset },
-                                uCameraOffset: { type: "v2", value: cameraOffset },
-                                uHeightData: { type: "t", value: heightData },
-                                //uGrass: { type: "t", value: texture.grass },
-                                uOrtoFoto: { type: "t", value: ortofotoTexture },
-                                //uSnow: { type: "t", value: texture.snow },
-                                uTileOffset: { type: "v2", value: offset },
-                                uScale: { type: "f", value: scale }
+                                uEdgeMorph: { value: edgeMorph },
+                                uGlobalOffset: { value: globalOffset },
+                                uCameraOffset: { value: cameraOffset },
+                                uTileOffset: { value: offset },
+                                uScale: { value: scale },
+                                // Add heightMap and ortofoto for each level
+                                uHeightMap2: { value: heightMap },
+                                uOrtoFoto2: { value: ortoFotoTexture },
+                                uHeightMap4: { value: heightMap },
+                                uOrtoFoto4: { value: ortoFotoTexture },
+                                uHeightMap6: { value: heightMap },
+                                uOrtoFoto6: { value: ortoFotoTexture },
+                                uHeightMap8: { value: heightMap },
+                                uOrtoFoto8: { value: ortoFotoTexture },
+                                // Add level offsets
+                                uLevelOffset2: { value: World.offset },
+                                uLevelOffset4: { value: World.terrain.position },
+                                uLevelOffset6: { value: World.terrain.position },
+                                uLevelOffset8: { value: World.terrain.position }
+                            },
+                            defines: {
+                                TILE_RESOLUTION: resolution,
+                                LEVEL2_WIDTH: World.size.x,
+                                LEVEL4_WIDTH: LOD.levels['4'].dimension,
+                                LEVEL6_WIDTH: LOD.levels['6'].dimension,
+                                LEVEL8_WIDTH: LOD.levels['8'].dimension,
                             },
                             vertexShader: document.getElementById( 'vertexShader'   ).textContent,
                             fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
-                            wireframe: true
-                        } );
+                            //wireframe: true
+                        });
                     };
-
-                    bumpTexture.wrapS = bumpTexture.wrapT = THREE.RepeatWrapping;
 
                     var levels = 9;
                     var resolution = 32;
@@ -120,7 +128,7 @@ function init(heights, dataWidth, dataDepth, hmin, hmax) {
                     // +---+---+---+---+
                     // | A | A | A | A |
                     // +---+---+---+---+
-                    for (var scale = initialScale; scale < World.size.x; scale *= 2) {
+                    for (var scale = initialScale; 4 * scale <= World.size.x; scale *= 2) {
                         createTile( -2 * scale, -2 * scale, scale, Edge.BOTTOM | Edge.LEFT );
                         createTile( -2 * scale, -scale, scale, Edge.LEFT );
                         createTile( -2 * scale, 0, scale, Edge.LEFT );
@@ -144,7 +152,6 @@ function init(heights, dataWidth, dataDepth, hmin, hmax) {
                     }
 
                     World.scene.add(World.terrain);
-                    console.log(World.terrain.position);
 
                     // axes
 
@@ -186,7 +193,7 @@ function animate() {
     render();
     stats.update();
 
-    //LOD.update();
+    LOD.throttledUpdate();
 }
 
 function render() {

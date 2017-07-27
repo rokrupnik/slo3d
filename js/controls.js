@@ -96,6 +96,8 @@ var Controls = (function () {
     }
 
     return {
+        movementInProgress: false,
+
         camera: null,
         controls: null,
 
@@ -105,7 +107,11 @@ var Controls = (function () {
         initializeControls: initializeControls,
         initializeCamera: initializeCamera,
         init: function () {
+            document.body.addEventListener( 'mousedown', function () { Controls.movementInProgress = true; }, false );
+            document.body.addEventListener( 'mouseup', function () { Controls.movementInProgress = false; }, false );
+
             document.body.addEventListener( 'mouseup', projectTargetToPlane, false );
+
             document.addEventListener('keydown', onKeyDown, false);
             document.addEventListener('keyup', onKeyUp, false);
         }

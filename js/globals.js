@@ -12,7 +12,4 @@ var container = document.getElementById( 'container' ),
 
 var intersection;
 
-var lods = {};
-var loadedLevels = [];
-
 var clock;

@@ -396,11 +396,11 @@ var Data = (function () {
         Data.loadingInProgress = true;
         Data.img = new Image();
         Data.img.addEventListener("load", onDataLoad);
-        Data.img.src = 'data/' + level + '/' + Math.floor(x / 1000) + '_' + Math.floor(y / 1000) + '.png';
+        Data.img.src = 'http://212.235.189.233:8888/data/' + level + '/' + Math.floor(x / 1000) + '_' + Math.floor(y / 1000) + '.png';
     };
 
     return {
-        initialHeightMap: "data/2/374_31.png",
+        initialHeightMap: "http://212.235.189.233:8888/data/2/374_31.png",
         img: null,
         hmin: 3000.0,
         hmax: -1,

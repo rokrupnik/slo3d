@@ -424,6 +424,7 @@ var Data = (function () {
 
         init: function () {
             Data.img = new Image();
+            Data.img.crossOrigin = "Anonymous";
             Data.img.addEventListener("load", onInitialDataLoad);
             Data.img.src = Data.initialHeightMap;
         }

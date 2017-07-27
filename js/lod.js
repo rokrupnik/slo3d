@@ -10,8 +10,8 @@ var LOD = (function () {
 
             var nextLevel = 0;
 
-            var x = Controls.controls.target.x,//intersection.point.x,//
-                y = Controls.controls.target.y,//intersection.point.y;//
+            var x = Controls.camera.position.x,//Controls.controls.target.x,//intersection.point.x,//
+                y = Controls.camera.position.y,//Controls.controls.target.y;//intersection.point.y;//
                 z = Controls.camera.position.z;
 
             // Detect LOD level

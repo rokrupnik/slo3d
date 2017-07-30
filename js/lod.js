@@ -5,13 +5,13 @@ var LOD = (function () {
      * Loads new data if camera is in the right position.
      */
     var update = function () {
-        if (!LOD.updateInProgress && !Controls.movementInProgress/* && !LOD.loadingInProgress*/) {
+        if (!LOD.updateInProgress && !Controls.movementInProgress&& !LOD.tooCloseToLastLODUpdate) {
             LOD.updateInProgress = true;
 
-            var nextLevel = 0;
+            var nextLevel = 2;
 
-            var x = Controls.camera.position.x,//Controls.controls.target.x,//intersection.point.x,//
-                y = Controls.camera.position.y,//Controls.controls.target.y;//intersection.point.y;//
+            var x = Controls.controls.target.x,//Controls.camera.position.x,//intersection.point.x,//
+                y = Controls.controls.target.y,//Controls.camera.position.y,//intersection.point.y;//
                 z = Controls.camera.position.z;
 
             // Detect LOD level
@@ -20,8 +20,15 @@ var LOD = (function () {
                 if (z < level.startDistance) {
                     nextLevel = Math.max(nextLevel, levelId);
 
-                    // Update all actived levels
-                    updateLevel(levelId, level.dimension, x, y);
+                    // Update all active levels if:
+                    // they are not updated OR
+                    // LOD level increased
+                    if (
+                        level.isWaitingForUpdate ||
+                        nextLevel > LOD.level
+                    ) {
+                        updateLevel(levelId, level.dimension, x, y);
+                    }                    
                 }
             });
 
@@ -31,70 +38,58 @@ var LOD = (function () {
     };
 
     var updateLevel = function (levelId, levelDim, x, y) {
-        var qtNode = World.searchQtree(x, y, levelDim);
-
-        // If no quad tree node is found, the target is not in this world
-        if (qtNode !== null) {
-            x = qtNode.x;
-            y = qtNode.y;
-
-            if (
-                // Only load data if quadtree node coordinates changed
-                LOD.levels[levelId].lastQtCoordinates.x !== x ||
-                LOD.levels[levelId].lastQtCoordinates.y !== y
-            ) {
-                console.log('LOD update start: ', levelId);
-                LOD.levels[levelId].lastQtCoordinates.x = x;
-                LOD.levels[levelId].lastQtCoordinates.y = y;
-
-                if (
-                    // Only load data if no data exist at these coordinates
-                    ! LOD.levels[levelId] ||
-                    ! LOD.levels[levelId].data[x] ||
-                    ! LOD.levels[levelId].data[x][y] ||
-                    ! LOD.levels[levelId].data[x][y]
-                ) {
-
-                    loadHeightMapAndOrtofoto(levelId, levelDim, x, y);
-                } else if (
-                    // Data is allready loaded
-                    // Just check if they are in correct form
-                    _.isArray(LOD.levels[levelId].data[x][y]) &&
-                    LOD.levels[levelId].data[x][y].length > 1
-                ) {
-                    sendTexturesToShaders(levelId, levelDim, x, y, LOD.levels[levelId].data[x][y][0], LOD.levels[levelId].data[x][y][1]);
-                }
+        // Load heightMap and ortoFoto for all tiles, first for tiles in the center
+        
+        for(var i = 0; i < World.terrain.children.length; i++) {
+            if (i < 40) {
+                Controls.signalRequestStart();
             }
+            loadHeightMapAndOrtofoto(
+                LOD.serverSideLevels[World.terrain.children[i].material.uniforms.uScale.value/LOD.OVERLAP],
+                World.terrain.children[i].material.uniforms.uScale.value,
+                World.terrain.children[i].material.uniforms.uTileOffset.value.x + x,
+                World.terrain.children[i].material.uniforms.uTileOffset.value.y + y,
+                World.terrain.children[i].material.uniforms,
+                i
+            );
         }
+
+        // We update only the most detailed level, mark all others as loaded
+        _.forEach(LOD.levels, function (level, levelId) {
+            level.isWaitingForUpdate = false;
+        });
+
+        LOD.lastLoadingCoordinates.x = x;
+        LOD.lastLoadingCoordinates.y = y;
+        Controls.movingDisabled = true;
+        LOD.tooCloseToLastLODUpdate = true;
     };
 
-    var loadHeightMapAndOrtofoto = function (levelId, levelDim, x, y) {
+    var loadHeightMapAndOrtofoto = function (levelId, levelDim, x, y, tileShaderUniforms, i) {
         // Start loading heightmap
-        Controls.signalRequestStart();
+        
         Texture.loader.load(
-            'data/' + levelId + '/' + Math.floor(x / 1000) + '_' + Math.floor(y / 1000) + '.png',
-            handleLoadedHeightMap(levelId, levelDim, x, y),
+            'http://212.235.189.233:8888/heightmaps?x=' + x + '&y=' + y + '&dim=' + levelDim + '&levelId=' + levelId,
+            handleLoadedHeightMap(levelId, levelDim, x, y, tileShaderUniforms, i),
             null,
             function (response) {
                 console.error('HeightMap loading failed', levelId, x, y, response);
-                // Mark area as checked to prevent further loading
-                if(!LOD.levels[levelId].data[x]) {
-                    LOD.levels[levelId].data[x] = {};
+                if (i < 40) {
+                    Controls.signalRequestEnd();
                 }
-                LOD.levels[levelId].data[x][y] = true;
-                Controls.signalRequestEnd();
             }
         );
     };
 
-    var handleLoadedHeightMap = function (levelId, levelDim, x, y) {
+    var handleLoadedHeightMap = function (levelId, levelDim, x, y, tileShaderUniforms, i) {
+        var ortoFotoResolution = getLevelOrtofotoResolutions(levelId);
         return function (heightMap) {
             var handleFailedOrtofoto = function (numberOfRetries) {
                 if (numberOfRetries > 0) {
                     console.warn('Ortofoto loading failed. Retrying, number of retries left: ', numberOfRetries, levelId, x, y);
                     Texture.loader.load(
-                        Texture.generateUrl([x,y], [(x + levelDim),(y + levelDim)], [1024, 1024]),
-                        handleLoadedOrtofoto(levelId, levelDim, x, y, heightMap),
+                        Texture.generateUrl([x,y], [(x + levelDim),(y + levelDim)], [ortoFotoResolution, ortoFotoResolution]),
+                        handleLoadedOrtofoto(levelId, levelDim, x, y, heightMap, tileShaderUniforms, i),
                         null,
                         function () {
                             handleFailedOrtofoto(numberOfRetries - 1);
@@ -103,13 +98,13 @@ var LOD = (function () {
                 } else {
                     console.error('Ortofoto loading failed.', levelId, x, y);
                     // At least use the loaded heightmap
-                    sendTexturesToShaders(levelId, levelDim, x, y, heightMap, null);
+                    sendTexturesToShaders(levelId, levelDim, x, y, heightMap, null, tileShaderUniforms);
                 }
             };
             // Start loading ortoFoto
             Texture.loader.load(
-                Texture.generateUrl([x,y], [(x + levelDim),(y + levelDim)], [1024, 1024]),
-                handleLoadedOrtofoto(levelId, levelDim, x, y, heightMap),
+                Texture.generateUrl([x,y], [(x + levelDim),(y + levelDim)], [ortoFotoResolution, ortoFotoResolution]),
+                handleLoadedOrtofoto(levelId, levelDim, x, y, heightMap, tileShaderUniforms, i),
                 null,
                 function () {
                     handleFailedOrtofoto(LOD.MAX_NUM_OF_RETRIES);
@@ -118,64 +113,24 @@ var LOD = (function () {
         };
     };
 
-    var handleLoadedOrtofoto = function (levelId, levelDim, x, y, heightMap) {
+    var handleLoadedOrtofoto = function (levelId, levelDim, x, y, heightMap, tileShaderUniforms, i) {
         return function (ortoFotoTexture) {
-            sendTexturesToShaders(levelId, levelDim, x, y, heightMap, ortoFotoTexture);
+            sendTexturesToShaders(levelId, levelDim, x, y, heightMap, ortoFotoTexture, tileShaderUniforms, i);
         };
     };
 
-    var sendTexturesToShaders = function (levelId, levelDim, x, y, heightMap, ortoFotoTexture) {
-        // Store reference to plane for later lod use
-        if(!LOD.levels[levelId].data[x]) {
-            LOD.levels[levelId].data[x] = {};
-        }
-        LOD.levels[levelId].data[x][y] = [heightMap, ortoFotoTexture];
-
-        // Add reference for new blocks to levelIds array
-        var ref = x + '_' + y;
-        if (!_.includes(LOD.levels[levelId].dataIds, ref)) {
-            LOD.levels[levelId].dataIds.push(ref);
-        }
-
-        // Check LOD level data limits
-        if (LOD.levels[levelId].dataIds.length > LOD.MAX_NUM_OF_TILES_PER_LEVEL) {
-            // console.info('MAX_NUM_OF_TILES_PER_LEVEL reached in level:', levelId);
-            ref = LOD.levels[levelId].dataIds.shift();
-            ref = ref.split('_');
-
-            x = ref[0];
-            y = ref[1];
-
-            delete LOD.levels[levelId].data[x][y];
-        }
-
-        // Send textures to shaders
-        // For each tile
-        _.forEach(World.terrain.children, function (tile) {
-            var tileDim = tile.material.uniforms.uScale.value;
-            var xTile = World.center.x + World.terrain.position.x + tile.material.uniforms.uTileOffset.value.x + tileDim/2,
-                yTile = World.center.y + World.terrain.position.y + tile.material.uniforms.uTileOffset.value.y + tileDim/2;
-
-            // If center of tile intersects loaded data
-            if (
-                x <= xTile &&
-                xTile <= (x + levelDim) &&
-                y <= yTile &&
-                yTile <= (y + levelDim)
-            ) {
-                // Send textures to shader and mark level as active
-                tile.material.uniforms['uHeightMap' + levelId] = { value: heightMap };
-                tile.material.uniforms['uOrtoFoto' + levelId] = { value: ortoFotoTexture };
-                tile.material.uniforms['uLevelOffset' + levelId] = { value: LOD.levels[levelId].lastQtCoordinates };
-            } else {
-                tile.material.uniforms['uLevelOffset' + levelId] = { value: World.terrain.position };
-            }
-        });
+    var sendTexturesToShaders = function (levelId, levelDim, x, y, heightMap, ortoFotoTexture, tileShaderUniforms, i) {
+        // Send textures to shader and signal that tile textures are active now
+        tileShaderUniforms.uTileHeightMap.value = heightMap;
+        tileShaderUniforms.uTileOrtoFoto.value = ortoFotoTexture;
+        tileShaderUniforms.uGlobalTexturesActive.value = false;
+        tileShaderUniforms.uTileTexturesActive.value = true;
 
         //LOD.loadingInProgress = false;
-        console.log('LOD update stop: ', levelId);
 
-        Controls.signalRequestEnd();
+        if (i < 40) {
+            Controls.signalRequestEnd();
+        }
     }
 
     /**
@@ -216,6 +171,23 @@ var LOD = (function () {
         return dist;
     };
 
+    var resolutions = [
+        32, // 0
+        32, // 1
+        32, // 2
+        64, // 3
+        256, // 4
+        256, // 5
+        256, // 6
+        256, // 7
+        512, // 8
+        512, // 9
+        1024 // 10
+    ];
+    var getLevelOrtofotoResolutions = function (level) {
+        return resolutions[level];
+    };
+
     var nearestPow2 = function( aSize ){
         return Math.pow( 2, Math.round( Math.log( aSize ) / Math.log( 2 ) ) );
     };
@@ -223,22 +195,30 @@ var LOD = (function () {
     function Level (dimension, startDistance) {
         this.dimension = dimension;
         this.startDistance = startDistance;
-        this.data = {};
+        // this.data = {};
         /**
          * Array for storing references to level data in the form 'x_y', e.g. '374000_31000'.
          * When new data is loaded, reference is stored at the back, and when dataIds.length > dataLimit,
          * we remove unshift the first reference and remove the data there.
          */
-        this.dataIds = [];
-        this.lastQtCoordinates = new THREE.Vector3();
+        // this.dataIds = [];
+        // this.lastQtCoordinates = new THREE.Vector3();
+        this.isWaitingForUpdate = false;
     }
 
     return {
-        MAX_NUM_OF_RETRIES: 3,
+        MAX_NUM_OF_RETRIES: 5,
         MAX_NUM_OF_TILES_PER_LEVEL: 100,
+        MIN_DISTANCE_TO_RELOAD: 4000,
+        OVERLAP: 1.05, // To prevent seams
 
         updateInProgress: false,
         loadingInProgress: true,
+        tooCloseToLastLODUpdate: false,
+
+        lastLoadingCoordinates: new THREE.Vector2(),
+
+        serverSideLevels: {},
 
         levels: {
             '2': new Level(getLevelDimension(2), getLevelEndDistance(1)),
@@ -255,11 +235,11 @@ var LOD = (function () {
 
         init: function () {
             // Mark area as checked to prevent further loading
-            LOD.levels[2].data[World.offset.x] = {};
-            LOD.levels[2].data[World.offset.x][World.offset.y] = true;
+            // LOD.levels[2].data[World.offset.x] = {};
+            // LOD.levels[2].data[World.offset.x][World.offset.y] = true;
 
-            LOD.levels[2].lastQtCoordinates.x = World.offset.x;
-            LOD.levels[2].lastQtCoordinates.y = World.offset.y;
+            // LOD.levels[2].lastQtCoordinates.x = World.offset.x;
+            // LOD.levels[2].lastQtCoordinates.y = World.offset.y;
         }
     };
 })();

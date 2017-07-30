@@ -59,28 +59,19 @@ function init() {
                                 uGlobalOffset: { value: globalOffset },
                                 uCameraOffset: { value: cameraOffset },
                                 uTileOffset: { value: offset },
-                                uScale: { value: scale },
-                                // Add heightMap and ortofoto for each level
-                                uHeightMap2: { value: heightMap },
-                                uOrtoFoto2: { value: ortoFotoTexture },
-                                uHeightMap4: { value: heightMap },
-                                uOrtoFoto4: { value: ortoFotoTexture },
-                                uHeightMap6: { value: heightMap },
-                                uOrtoFoto6: { value: ortoFotoTexture },
-                                uHeightMap8: { value: heightMap },
-                                uOrtoFoto8: { value: ortoFotoTexture },
-                                // Add level offsets
-                                uLevelOffset2: { value: World.offset },
-                                uLevelOffset4: { value: World.terrain.position },
-                                uLevelOffset6: { value: World.terrain.position },
-                                uLevelOffset8: { value: World.terrain.position }
+                                uScale: { value: scale * LOD.OVERLAP },
+                                // Add heightMap and ortofoto for global and tile textures
+                                uGlobalHeightMap: { value: heightMap },
+                                uGlobalOrtoFoto: { value: ortoFotoTexture },
+                                uTileHeightMap: { value: heightMap },
+                                uTileOrtoFoto: { value: ortoFotoTexture },
+                                // Add flags for switching between global and tile textures
+                                uGlobalTexturesActive: { value: true },
+                                uTileTexturesActive: { value: false }
                             },
                             defines: {
                                 TILE_RESOLUTION: resolution,
-                                LEVEL2_WIDTH: World.size.x,
-                                LEVEL4_WIDTH: LOD.levels['4'].dimension,
-                                LEVEL6_WIDTH: LOD.levels['6'].dimension,
-                                LEVEL8_WIDTH: LOD.levels['8'].dimension,
+                                WORLD_WIDTH: World.size.x,
                             },
                             vertexShader: document.getElementById( 'vertexShader'   ).textContent,
                             fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
@@ -88,7 +79,7 @@ function init() {
                         });
                     };
 
-                    var levels = 9;
+                    var levels = 8;
                     var resolution = 32;
 
                     // Offset is used to re-center the terrain, this way we get the greates detail
@@ -96,7 +87,7 @@ function init() {
                     World.cameraOffset = new THREE.Vector2(0, 0);
 
                     // Create geometry that we'll use for each tile, just a standard plane
-                    var tileGeometry = new THREE.PlaneGeometry( 1, 1, resolution, resolution );
+                    var tileGeometry = new THREE.PlaneGeometry( 1.01, 1.01, resolution, resolution );
                     // Place origin at bottom left corner, rather than center
                     var m = new THREE.Matrix4();
                     m.makeTranslation( 0.5, 0.5, 0 );
@@ -128,7 +119,8 @@ function init() {
                     // +---+---+---+---+
                     // | A | A | A | A |
                     // +---+---+---+---+
-                    for (var scale = initialScale; 4 * scale <= World.size.x; scale *= 2) {
+                    var serverSideLevel = 10;
+                    for (var scale = initialScale; scale < World.size.x; scale *= 2) {
                         createTile( -2 * scale, -2 * scale, scale, Edge.BOTTOM | Edge.LEFT );
                         createTile( -2 * scale, -scale, scale, Edge.LEFT );
                         createTile( -2 * scale, 0, scale, Edge.LEFT );
@@ -149,6 +141,10 @@ function init() {
 
                         // resolution /= 2;
                         // tileGeometry = new THREE.PlaneGeometry( 1, 1, resolution, resolution );
+
+                        // Prepare a map for LOD update.
+                        LOD.serverSideLevels[scale] = serverSideLevel;
+                        serverSideLevel -= 1;
                     }
 
                     World.scene.add(World.terrain);
@@ -192,29 +188,44 @@ function animate() {
 
     render();
     stats.update();
-
-    LOD.throttledUpdate();
 }
 
 function render() {
     Controls.controls.update( clock.getDelta() );
 
-    if (
-        World.terrain.position.x !== (Controls.controls.target.x - World.center.x) ||
-        World.terrain.position.y !== (Controls.controls.target.y - World.center.y)
-    ) {
-        World.terrain.position.x = Controls.controls.target.x - World.center.x;
-        World.terrain.position.y = Controls.controls.target.y - World.center.y;
-
-        // Update camera offset in shaders
-        World.cameraOffset.x = World.terrain.position.x;
-        World.cameraOffset.y = World.terrain.position.y;
-        for(var i = 0; i < World.terrain.children.length; i++) {
-            World.terrain.children[i].material.uniforms.uCameraOffset.value = World.cameraOffset;
+    if (!Controls.movementInProgress && !Controls.viewModeIsActive) {
+        // Check if we have moved enough from last LOD update position
+        if (
+            Math.abs(LOD.lastLoadingCoordinates.x - Controls.controls.target.x) > LOD.MIN_DISTANCE_TO_RELOAD ||
+            Math.abs(LOD.lastLoadingCoordinates.y - Controls.controls.target.y) > LOD.MIN_DISTANCE_TO_RELOAD
+        ) {
+            Controls.movingDisabled = false;
+            LOD.tooCloseToLastLODUpdate = false;
         }
+
+        if (
+            !Controls.movingDisabled &&
+            (
+                World.terrain.position.x !== (Controls.controls.target.x - World.center.x) ||
+                World.terrain.position.y !== (Controls.controls.target.y - World.center.y)
+            )
+        ) {
+            World.terrain.position.x = Controls.controls.target.x - World.center.x;
+            World.terrain.position.y = Controls.controls.target.y - World.center.y;
+
+            // Update camera offset in shaders
+            World.cameraOffset.x = World.terrain.position.x;
+            World.cameraOffset.y = World.terrain.position.y;
+            for(var i = 0; i < World.terrain.children.length; i++) {
+                World.terrain.children[i].material.uniforms.uCameraOffset.value = World.cameraOffset;
+            }
+        }
+
+        LOD.throttledUpdate();
     }
 
     World.renderer.render( World.scene, Controls.camera );
+        
 }
 
 init();

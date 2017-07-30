@@ -2,32 +2,32 @@ var Controls = (function () {
     'use strict';
 
     // For button functionality see PointerLockControls
-    var targetBackup = {};
-    var viewModeIsActive = false;
-    var onKeyDown = function ( event ) { // Enter view mode
-        if (event.keyCode == 17) { // Ctrl
-            viewModeIsActive = true;
+    // var targetBackup = {};
+    // var eps = 0.000001;
+    // var onKeyDown = function ( event ) { // Enter view mode
+    //     if (event.keyCode == 17) { // Ctrl
+    //         Controls.viewModeIsActive = true;
 
-            Controls.controls.target.x = Controls.camera.position.x -
-                0.000001 * (Controls.camera.position.x - Controls.controls.target.x);
-            Controls.controls.target.y = Controls.camera.position.y -
-                0.000001 * (Controls.camera.position.y - Controls.controls.target.y);
+    //         Controls.controls.target.x = Controls.camera.position.x -
+    //             Math.max(eps * (Controls.camera.position.x - Controls.controls.target.x), eps);
+    //         Controls.controls.target.y = Controls.camera.position.y -
+    //             Math.max(eps * (Controls.camera.position.y - Controls.controls.target.y), eps);
 
-            Controls.controls.target.z = Controls.camera.position.z;
+    //         Controls.controls.target.z = Controls.camera.position.z;
 
-            targetBackup.x = Controls.controls.target.x;
-            targetBackup.y = Controls.controls.target.y;
-            targetBackup.z = Controls.controls.target.z;
-        }
-    };
+    //         targetBackup.x = Controls.controls.target.x;
+    //         targetBackup.y = Controls.controls.target.y;
+    //         targetBackup.z = Controls.controls.target.z;
+    //     }
+    // };
 
-    var onKeyUp = function ( event ) { // Exit view mode
-        if (event.keyCode == 17) { // Ctrl
-            viewModeIsActive = false;
+    // var onKeyUp = function ( event ) { // Exit view mode
+    //     if (event.keyCode == 17) { // Ctrl
+    //         Controls.viewModeIsActive = false;
 
-            projectTargetToPlane();
-        }
-    };
+    //         projectTargetToPlane();
+    //     }
+    // };
 
     /**
      *  Target projection to z=0 plane when we stop panning
@@ -40,7 +40,7 @@ var Controls = (function () {
             yt = Controls.controls.target.y,
             zt = Controls.controls.target.z;
 
-        if (viewModeIsActive) { // View mode
+        if (Controls.viewModeIsActive) { // View mode
             Controls.controls.target.x = targetBackup.x;
             Controls.controls.target.y = targetBackup.y;
         } else if (zt < zc) {
@@ -80,23 +80,28 @@ var Controls = (function () {
     var requestCounter = 0;
     var preloader = document.getElementById('preloader');
     var signalRequestStart = function () {
-        if (requestCounter == 0) {
-            preloader.style.display = 'flex';
-        }
-
         requestCounter += 1;
+
+        if (requestCounter > 0 && preloader.style.display === 'none') {
+            preloader.style.display = 'flex'; // Display preloader
+        }
     }
     var signalRequestEnd = function () {
         requestCounter -= 1;
 
-        if (requestCounter == 0) {
-            preloader.style.display = 'none';
+        if (requestCounter < 1) {
             requestCounter = 0;
+            if (preloader.style.display !== 'none') {
+                preloader.style.display = 'none'; // Hide preloader
+            }
         }
     }
 
     return {
         movementInProgress: false,
+        movingDisabled: false,
+
+        viewModeIsActive: false,
 
         camera: null,
         controls: null,
@@ -108,12 +113,25 @@ var Controls = (function () {
         initializeCamera: initializeCamera,
         init: function () {
             document.body.addEventListener( 'mousedown', function () { Controls.movementInProgress = true; }, false );
-            document.body.addEventListener( 'mouseup', function () { Controls.movementInProgress = false; }, false );
+            document.body.addEventListener( 'mouseup', function (event) {
+                Controls.movementInProgress = false;
 
-            document.body.addEventListener( 'mouseup', projectTargetToPlane, false );
+                projectTargetToPlane();
 
-            document.addEventListener('keydown', onKeyDown, false);
-            document.addEventListener('keyup', onKeyUp, false);
+                // On left click mouse up event (pan stop) mark all levels as dirty
+                if (event.which == 1) {
+                    _.forEach(LOD.levels, function (level, levelId) {
+                        if (levelId !== "2") {
+                            level.isWaitingForUpdate = true;
+                        }
+                    });
+                }
+            }, false );
+
+            // document.body.addEventListener( 'mouseup', projectTargetToPlane, false );
+
+            // document.addEventListener('keydown', onKeyDown, false);
+            // document.addEventListener('keyup', onKeyUp, false);
         }
     };
 })();

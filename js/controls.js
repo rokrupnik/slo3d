@@ -97,6 +97,23 @@ var Controls = (function () {
         }
     }
 
+    var updateTilesLocation = function () {
+        if (
+            World.terrain.position.x !== (Controls.controls.target.x - World.center.x) ||
+            World.terrain.position.y !== (Controls.controls.target.y - World.center.y)
+        ) {
+            World.terrain.position.x = Controls.controls.target.x - World.center.x;
+            World.terrain.position.y = Controls.controls.target.y - World.center.y;
+
+            // Update camera offset in shaders
+            World.cameraOffset.x = World.terrain.position.x;
+            World.cameraOffset.y = World.terrain.position.y;
+            for(var i = 0; i < World.terrain.children.length; i++) {
+                World.terrain.children[i].material.uniforms.uCameraOffset.value = World.cameraOffset;
+            }
+        }
+    }
+
     return {
         movementInProgress: false,
         movingDisabled: false,
@@ -108,6 +125,8 @@ var Controls = (function () {
 
         signalRequestStart: signalRequestStart,
         signalRequestEnd: signalRequestEnd,
+
+        updateTilesLocation: updateTilesLocation,
 
         initializeControls: initializeControls,
         initializeCamera: initializeCamera,
@@ -121,9 +140,7 @@ var Controls = (function () {
                 // On left click mouse up event (pan stop) mark all levels as dirty
                 if (event.which == 1) {
                     _.forEach(LOD.levels, function (level, levelId) {
-                        if (levelId !== "2") {
-                            level.isWaitingForUpdate = true;
-                        }
+                        level.isWaitingForUpdate = true;
                     });
                 }
             }, false );

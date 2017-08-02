@@ -196,29 +196,15 @@ function render() {
     if (!Controls.movementInProgress && !Controls.viewModeIsActive) {
         // Check if we have moved enough from last LOD update position
         if (
-            Math.abs(LOD.lastLoadingCoordinates.x - Controls.controls.target.x) > LOD.MIN_DISTANCE_TO_RELOAD ||
-            Math.abs(LOD.lastLoadingCoordinates.y - Controls.controls.target.y) > LOD.MIN_DISTANCE_TO_RELOAD
+            Math.abs(LOD.lastLoadingCoordinates.x - Controls.controls.target.x) > LOD.levels[LOD.level].dimension ||
+            Math.abs(LOD.lastLoadingCoordinates.y - Controls.controls.target.y) > LOD.levels[LOD.level].dimension
         ) {
             Controls.movingDisabled = false;
             LOD.tooCloseToLastLODUpdate = false;
         }
 
-        if (
-            !Controls.movingDisabled &&
-            (
-                World.terrain.position.x !== (Controls.controls.target.x - World.center.x) ||
-                World.terrain.position.y !== (Controls.controls.target.y - World.center.y)
-            )
-        ) {
-            World.terrain.position.x = Controls.controls.target.x - World.center.x;
-            World.terrain.position.y = Controls.controls.target.y - World.center.y;
-
-            // Update camera offset in shaders
-            World.cameraOffset.x = World.terrain.position.x;
-            World.cameraOffset.y = World.terrain.position.y;
-            for(var i = 0; i < World.terrain.children.length; i++) {
-                World.terrain.children[i].material.uniforms.uCameraOffset.value = World.cameraOffset;
-            }
+        if (!Controls.movingDisabled) {
+            Controls.updateTilesLocation();
         }
 
         LOD.throttledUpdate();

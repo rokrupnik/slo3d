@@ -120,7 +120,7 @@ varying vec2 vUV;
 float height;
 vec3 newPosition;
 
-// #define HEIGHT_SCALE 0.01
+#define HEIGHT_SCALE 0.01
 
 // uniform int uEdgeMorph;
 
@@ -176,6 +176,10 @@ float getHeight(vec3 p, vec2 uv) {
   }
 
   height = HEIGHT_SCALE * dot(heightData, vec4(16711680.0, 65280.0, 255.0, 0.0));
+
+  if (height > 2870.0) {
+	  height = 0.0;
+  }
 
   return height;
 }

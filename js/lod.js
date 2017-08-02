@@ -5,7 +5,7 @@ var LOD = (function () {
      * Loads new data if camera is in the right position.
      */
     var update = function () {
-        if (!LOD.updateInProgress && !Controls.movementInProgress&& !LOD.tooCloseToLastLODUpdate) {
+        if (!LOD.updateInProgress && !Controls.movementInProgress) {
             LOD.updateInProgress = true;
 
             var nextLevel = 2;
@@ -21,11 +21,22 @@ var LOD = (function () {
                     nextLevel = Math.max(nextLevel, levelId);
 
                     // Update all active levels if:
-                    // they are not updated OR
-                    // LOD level increased
+                    // (they are not updated AND
+                    // the location has changed enough) OR
+                    // (there was some movement AND
+                    // LOD level increased)
                     if (
-                        level.isWaitingForUpdate ||
-                        nextLevel > LOD.level
+                        (
+                            level.isWaitingForUpdate &&
+                            !LOD.tooCloseToLastLODUpdate
+                        ) ||
+                        (
+                            (
+                                LOD.lastLoadingCoordinates.x !== Controls.controls.target.x ||
+                                LOD.lastLoadingCoordinates.y !== Controls.controls.target.y
+                            ) &&
+                            nextLevel > LOD.level
+                        )
                     ) {
                         updateLevel(levelId, level.dimension, x, y);
                     }                    
@@ -38,6 +49,9 @@ var LOD = (function () {
     };
 
     var updateLevel = function (levelId, levelDim, x, y) {
+        // Allow to move the mesh in the appropriate position
+        Controls.updateTilesLocation();
+
         // Load heightMap and ortoFoto for all tiles, first for tiles in the center
         
         for(var i = 0; i < World.terrain.children.length; i++) {
@@ -146,7 +160,7 @@ var LOD = (function () {
         var dim = 1000;
         for (var i = 0; i < (10 - level); i++)
             dim *= 2;
-        return Math.max(dim, 8000);
+        return Math.max(dim, 4000);
     };
 
     var distances = [

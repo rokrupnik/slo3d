@@ -59,7 +59,7 @@ var LOD = (function () {
                 Controls.signalRequestStart();
             }
             loadHeightMapAndOrtofoto(
-                LOD.serverSideLevels[World.terrain.children[i].material.uniforms.uScale.value/LOD.OVERLAP],
+                LOD.serverSideLevels[World.terrain.children[i].material.uniforms.uScale.value/LOD.TILE_SCALE], //5, //
                 World.terrain.children[i].material.uniforms.uScale.value,
                 World.terrain.children[i].material.uniforms.uTileOffset.value.x + x,
                 World.terrain.children[i].material.uniforms.uTileOffset.value.y + y,
@@ -98,6 +98,7 @@ var LOD = (function () {
     var handleLoadedHeightMap = function (levelId, levelDim, x, y, tileShaderUniforms, i) {
         var ortoFotoResolution = getLevelOrtofotoResolutions(levelId);
         return function (heightMap) {
+            heightMap.minFilter = THREE.LinearFilter;
             var handleFailedOrtofoto = function (numberOfRetries) {
                 if (numberOfRetries > 0) {
                     console.warn('Ortofoto loading failed. Retrying, number of retries left: ', numberOfRetries, levelId, x, y);
@@ -224,7 +225,7 @@ var LOD = (function () {
         MAX_NUM_OF_RETRIES: 5,
         MAX_NUM_OF_TILES_PER_LEVEL: 100,
         MIN_DISTANCE_TO_RELOAD: 4000,
-        OVERLAP: 1.05, // To prevent seams
+        TILE_SCALE: 1.2, //1.0, // To prevent seams
 
         updateInProgress: false,
         loadingInProgress: true,
@@ -232,7 +233,20 @@ var LOD = (function () {
 
         lastLoadingCoordinates: new THREE.Vector2(),
 
-        serverSideLevels: {},
+        serverSideLevels: {
+            '32': 2,
+            '64': 3,
+            '256': 7,
+            '512': 9,
+            '128000': 3,
+            '64000': 4,
+            '32000': 5,
+            '16000': 6,
+            '8000': 7,
+            '4000': 8,
+            '2000': 9,
+            '1000': 10
+        },
 
         levels: {
             '2': new Level(getLevelDimension(2), getLevelEndDistance(1)),

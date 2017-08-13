@@ -4,30 +4,36 @@ var Controls = (function () {
     // For button functionality see PointerLockControls
     // var targetBackup = {};
     // var eps = 0.000001;
-    // var onKeyDown = function ( event ) { // Enter view mode
-    //     if (event.keyCode == 17) { // Ctrl
-    //         Controls.viewModeIsActive = true;
+    
+    var crosshairs = document.getElementsByClassName('crosshair');
+    var onKeyDown = function ( event ) { // Enter view mode
+        if (event.keyCode == 17) { // Ctrl
+            crosshairs[0].style.display = 'block';
+            crosshairs[1].style.display = 'block';
+            // Controls.viewModeIsActive = true;
 
-    //         Controls.controls.target.x = Controls.camera.position.x -
-    //             Math.max(eps * (Controls.camera.position.x - Controls.controls.target.x), eps);
-    //         Controls.controls.target.y = Controls.camera.position.y -
-    //             Math.max(eps * (Controls.camera.position.y - Controls.controls.target.y), eps);
+            // Controls.controls.target.x = Controls.camera.position.x -
+            //     Math.max(eps * (Controls.camera.position.x - Controls.controls.target.x), eps);
+            // Controls.controls.target.y = Controls.camera.position.y -
+            //     Math.max(eps * (Controls.camera.position.y - Controls.controls.target.y), eps);
 
-    //         Controls.controls.target.z = Controls.camera.position.z;
+            // Controls.controls.target.z = Controls.camera.position.z;
 
-    //         targetBackup.x = Controls.controls.target.x;
-    //         targetBackup.y = Controls.controls.target.y;
-    //         targetBackup.z = Controls.controls.target.z;
-    //     }
-    // };
+            // targetBackup.x = Controls.controls.target.x;
+            // targetBackup.y = Controls.controls.target.y;
+            // targetBackup.z = Controls.controls.target.z;
+        }
+    };
 
-    // var onKeyUp = function ( event ) { // Exit view mode
-    //     if (event.keyCode == 17) { // Ctrl
-    //         Controls.viewModeIsActive = false;
+    var onKeyUp = function ( event ) { // Exit view mode
+        if (event.keyCode == 17) { // Ctrl
+            crosshairs[0].style.display = 'none';
+            crosshairs[1].style.display = 'none';
+            // Controls.viewModeIsActive = false;
 
-    //         projectTargetToPlane();
-    //     }
-    // };
+            // projectTargetToPlane();
+        }
+    };
 
     /**
      *  Target projection to z=0 plane when we stop panning
@@ -147,8 +153,8 @@ var Controls = (function () {
 
             // document.body.addEventListener( 'mouseup', projectTargetToPlane, false );
 
-            // document.addEventListener('keydown', onKeyDown, false);
-            // document.addEventListener('keyup', onKeyUp, false);
+            document.addEventListener('keydown', onKeyDown, false);
+            document.addEventListener('keyup', onKeyUp, false);
         }
     };
 })();

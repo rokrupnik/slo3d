@@ -59,7 +59,7 @@ function init() {
                                 uGlobalOffset: { value: globalOffset },
                                 uCameraOffset: { value: cameraOffset },
                                 uTileOffset: { value: offset },
-                                uScale: { value: scale * LOD.OVERLAP },
+                                uScale: { value: scale * LOD.TILE_SCALE },
                                 // Add heightMap and ortofoto for global and tile textures
                                 uGlobalHeightMap: { value: heightMap },
                                 uGlobalOrtoFoto: { value: ortoFotoTexture },
@@ -71,6 +71,7 @@ function init() {
                             },
                             defines: {
                                 TILE_RESOLUTION: resolution,
+                                TILE_SCALE: LOD.TILE_SCALE,
                                 WORLD_WIDTH: World.size.x,
                             },
                             vertexShader: document.getElementById( 'vertexShader'   ).textContent,
@@ -80,14 +81,14 @@ function init() {
                     };
 
                     var levels = 8;
-                    var resolution = 32;
+                    var resolution = 64;
 
                     // Offset is used to re-center the terrain, this way we get the greates detail
                     // nearest to the camera. In the future, should calculate required detail level per tile
                     World.cameraOffset = new THREE.Vector2(0, 0);
 
                     // Create geometry that we'll use for each tile, just a standard plane
-                    var tileGeometry = new THREE.PlaneGeometry( 1.01, 1.01, resolution, resolution );
+                    var tileGeometry = new THREE.PlaneGeometry( 1, 1, resolution, resolution );
                     // Place origin at bottom left corner, rather than center
                     var m = new THREE.Matrix4();
                     m.makeTranslation( 0.5, 0.5, 0 );
@@ -119,7 +120,7 @@ function init() {
                     // +---+---+---+---+
                     // | A | A | A | A |
                     // +---+---+---+---+
-                    var serverSideLevel = 10;
+                    // var serverSideLevel = 10;
                     for (var scale = initialScale; scale < World.size.x; scale *= 2) {
                         createTile( -2 * scale, -2 * scale, scale, Edge.BOTTOM | Edge.LEFT );
                         createTile( -2 * scale, -scale, scale, Edge.LEFT );
@@ -143,8 +144,8 @@ function init() {
                         // tileGeometry = new THREE.PlaneGeometry( 1, 1, resolution, resolution );
 
                         // Prepare a map for LOD update.
-                        LOD.serverSideLevels[scale] = serverSideLevel;
-                        serverSideLevel -= 1;
+                        // LOD.serverSideLevels[scale] = serverSideLevel;
+                        // serverSideLevel -= 1;
                     }
 
                     World.scene.add(World.terrain);

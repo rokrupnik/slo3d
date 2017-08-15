@@ -50,14 +50,15 @@
 
 			#preloader {
 				position: fixed;
-				top: 0;
-				left: 0;
-				width: 100%;
-				height: 100%;
-				background: rgba(255, 255, 255, 0.8);
+				bottom: 0;
+				right: 0;
+				width: 30%;
+				height: 20%;
+				background: rgba(255, 255, 255, 0.8) url(img/loading.gif) no-repeat left center;
+				background-size: 45%;
 				display: flex;
 			}
-			#preloader h1 {
+			#preloader div {
 				margin: auto;
 			}
 
@@ -72,7 +73,10 @@
 			<a href="#" onclick="LOD.lastLoadingCoordinates.x = 0;">RELOAD DATA FOR CURRENT VIEW</a>
         </div>
 		<div id="preloader" style="display: none;">
-			<h1>LOADING DATA...</h1>
+			<div>
+				<h1>LOADING DATA</h1>
+				<p>(panning is disabled)</p>
+			</div>
 		</div>
 
 		<div class="crosshair vertical">&nbsp;</div>
@@ -110,12 +114,9 @@ uniform vec2 uCameraOffset;
 uniform vec2 uTileOffset;
 uniform float uScale;
 
-uniform sampler2D uGlobalHeightMap;
 uniform sampler2D uTileHeightMap;
-uniform bool uGlobalTexturesActive;
-uniform bool uTileTexturesActive;
 
-varying vec3 vNormal;
+// varying vec3 vNormal;
 // varying float vMorphFactor;
 varying vec2 vUV;
 
@@ -163,32 +164,26 @@ vec3 newPosition;
 // }
 
 float getHeight(vec3 p, vec2 uv) {
-  // Assume a 1024x1024 world
-  //float lod = 0.0;//log2(uScale) - 6.0;
-  vec2 st;
-  vec4 heightData = vec4(0.0, 0.0, 0.0, 0.0);
-  float height = 0.0;
+	// Assume a 1024x1024 world
+	//float lod = 0.0;//log2(uScale) - 6.0;
+	vec2 st;
+	vec4 heightData = vec4(0.0, 0.0, 0.0, 0.0);
+	float height = 0.0;
 
-  // If Global textures are active load GlobalHeightMap, otherwise load TileHeightMap
-  if (uGlobalTexturesActive) {
-	st = ((p.xy + uCameraOffset) / float(WORLD_WIDTH)) + 0.5;
-	heightData = texture2D( uGlobalHeightMap, st );
-  } else if (uTileTexturesActive) {
 	st = uv;// * 1.05;//min((uv * TILE_SCALE), vec2(1.0, 1.0));
 	heightData = texture2D( uTileHeightMap, st );
-  }
 
-  height = HEIGHT_SCALE * dot(heightData, vec4(16711680.0, 65280.0, 255.0, 0.0));
+	height = HEIGHT_SCALE * dot(heightData, vec4(16711680.0, 65280.0, 255.0, 0.0));
 
-  if (uTileTexturesActive && (st.x > 0.99 || st.y > 0.99)) {
-	  height -= 10.0;
-  }
+	if (st.x > 0.99 || st.y > 0.99) {
+		height -= 10.0;
+	}
 
-  if (height > 2870.0) {
-	  height = 0.0;
-  }
+	if (height > 2870.0) {
+		height = 0.0;
+	}
 
-  return height;
+	return height;
 }
 
 void main()
@@ -219,7 +214,61 @@ void main()
 	height = getHeight(newPosition, uv);
 
 	// Prepare uv coordinates for fragment shader
-  	if (uGlobalTexturesActive) {
+  	vUV = uv;
+
+	newPosition += uGlobalOffset;
+
+	// move the position along the normal
+    newPosition = newPosition + normal * height;
+
+	gl_Position = projectionMatrix * modelViewMatrix * vec4( newPosition, 1.0 );
+}
+</script>
+<!-- ---------------- Custom Shader Code ------------------------ -->
+<script id="roughVertexShader" type="x-shader/x-vertex">
+uniform vec3 uGlobalOffset;
+uniform vec2 uCameraOffset;
+uniform vec2 uTileOffset;
+uniform float uScale;
+
+uniform sampler2D uGlobalHeightMap;
+uniform bool uGlobalTexturesActive;
+uniform bool uTileTexturesActive;
+
+//varying vec3 vNormal;
+varying vec2 vUV;
+
+float height;
+vec3 newPosition;
+
+#define HEIGHT_SCALE 0.01
+
+float getHeight(vec3 p, vec2 uv) {
+	vec2 st;
+	vec4 heightData = vec4(0.0, 0.0, 0.0, 0.0);
+	float height = 0.0;
+
+	st = ((p.xy + uCameraOffset) / float(WORLD_WIDTH)) + 0.5;
+	heightData = texture2D( uGlobalHeightMap, st );
+
+	height = HEIGHT_SCALE * dot(heightData, vec4(16711680.0, 65280.0, 255.0, 0.0));
+
+	if (height > 2870.0) {
+		height = 0.0;
+	}
+
+	return height;
+}
+
+void main()
+{
+	// Move into correct place
+	newPosition = uScale * position + vec3(uTileOffset, 0.0);
+
+	height = getHeight(newPosition, uv);
+
+	// Prepare uv coordinates for fragment shader
+	if (uGlobalTexturesActive) {
 		vUV = ((newPosition.xy + uCameraOffset) / float(WORLD_WIDTH)) + 0.5;
 	} else if (uTileTexturesActive) {
 		vUV = uv;
@@ -235,7 +284,7 @@ void main()
 </script>
 
 <!-- fragment shader a.k.a. pixel shader -->
-<script id="fragmentShader" type="x-shader/x-vertex">
+<script id="roughFragmentShader" type="x-shader/x-vertex">
 uniform sampler2D uGlobalOrtoFoto;
 uniform sampler2D uTileOrtoFoto;
 uniform bool uGlobalTexturesActive;
@@ -245,16 +294,35 @@ varying vec2 vUV;
 
 void main()
 {
-  vec4 color = vec4( 0.749, 0.82, 0.899, 1.0);
+	vec4 color = vec4( 0.749, 0.82, 0.899, 1.0);
 
-  // If Global textures are active load GlobalOrtoFoto, otherwise load TileOrtoFoto
-  if (uGlobalTexturesActive) {
-	color = texture2D( uGlobalOrtoFoto, vUV );
-  } else if (uTileTexturesActive) {
-	color = texture2D( uTileOrtoFoto, vUV );
-  }
+	// If Global textures are active load GlobalOrtoFoto, otherwise load TileOrtoFoto
+	if (uGlobalTexturesActive) {
+		color = texture2D( uGlobalOrtoFoto, vUV );
+	} else if (uTileTexturesActive) {
+		color = texture2D( uTileOrtoFoto, vUV );
+	}
 	
-  gl_FragColor = color;
+	gl_FragColor = color;
+}
+</script>
+
+<!-- fragment shader a.k.a. pixel shader -->
+<script id="fragmentShader" type="x-shader/x-vertex">
+uniform sampler2D uTileOrtoFoto;
+uniform bool uTileTexturesActive;
+
+varying vec2 vUV;
+
+void main()
+{
+	vec4 color = vec4( 0.749, 0.82, 0.899, 1.0);
+	
+	if (uTileTexturesActive) {
+		color = texture2D( uTileOrtoFoto, vUV );
+	}
+
+	gl_FragColor = color;
 }
 </script>
 <!-- ----------------------------------------------------------- -->

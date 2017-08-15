@@ -17,16 +17,16 @@ function init() {
     World.initializeRenderer();
 
     Controls.initializeCamera(
-        World.center.x,//World.offset.x + (0.43 * World.size.x),//0,//
-        World.center.y,//World.offset.y + (0.33 * World.size.y),//0,//
-        World.size.y
+        World.offset.x + (0.43 * World.size.x),//World.center.x,//0,//
+        World.offset.y + (0.33 * World.size.y),//World.center.y,//0,//
+        World.size.y * 0.6
     );
 
     Controls.initializeControls();
 
     //
 
-    Controls.signalRequestStart();
+    // Controls.signalRequestStart();
     Texture.loader.load(
         'data/2/374_31.png',
         function (initialHeightMap) {
@@ -51,6 +51,24 @@ function init() {
 
                         World.terrain.add( plane );
                     };
+                    var createRoughTile = function ( x, y, scale ) {
+
+                        var roughTerrainMaterial = createRoughTerrainMaterial(
+                            initialHeightMap,
+                            World.center,
+                            World.roughCameraOffset,
+                            new THREE.Vector2( x, y ),
+                            scale,
+                            resolution
+                        );
+
+                        var roughPlane = new THREE.Mesh( tileGeometry, roughTerrainMaterial );
+                        roughPlane.frustumCulled = false;
+
+                        World.roughTerrain.add( roughPlane );
+
+                        LOD.handleLoadedHeightMap(11, scale, World.center.x + x, World.center.y + y, roughTerrainMaterial.uniforms, 100, 2)(initialHeightMap);                        
+                    };
 
                     var createTerrainMaterial = function( heightMap, globalOffset, cameraOffset, offset, scale, resolution, edgeMorph ) {
                         return new THREE.ShaderMaterial({
@@ -60,9 +78,6 @@ function init() {
                                 uCameraOffset: { value: cameraOffset },
                                 uTileOffset: { value: offset },
                                 uScale: { value: scale * LOD.TILE_SCALE },
-                                // Add heightMap and ortofoto for global and tile textures
-                                uGlobalHeightMap: { value: heightMap },
-                                uGlobalOrtoFoto: { value: ortoFotoTexture },
                                 uTileHeightMap: { value: heightMap },
                                 uTileOrtoFoto: { value: ortoFotoTexture },
                                 // Add flags for switching between global and tile textures
@@ -80,12 +95,40 @@ function init() {
                         });
                     };
 
+                    var createRoughTerrainMaterial = function( heightMap, globalOffset, cameraOffset, offset, scale, resolution ) {
+                        return new THREE.ShaderMaterial({
+                            uniforms: {
+                                uGlobalOffset: { value: globalOffset },
+                                uCameraOffset: { value: cameraOffset },
+                                uTileOffset: { value: offset },
+                                uScale: { value: scale },
+                                // Add heightMap and ortofoto for global and tile textures
+                                uGlobalHeightMap: { value: heightMap },
+                                uGlobalOrtoFoto: { value: ortoFotoTexture },
+                                uTileHeightMap: { value: heightMap },
+                                uTileOrtoFoto: { value: ortoFotoTexture },
+                                // Add flags for switching between global and tile textures
+                                uGlobalTexturesActive: { value: true },
+                                uTileTexturesActive: { value: false }
+                            },
+                            defines: {
+                                TILE_RESOLUTION: resolution,
+                                TILE_SCALE: LOD.TILE_SCALE,
+                                WORLD_WIDTH: World.size.x,
+                            },
+                            vertexShader: document.getElementById( 'roughVertexShader'   ).textContent,
+                            fragmentShader: document.getElementById( 'roughFragmentShader' ).textContent,
+                            //wireframe: true
+                        });
+                    };
+
                     var levels = 8;
                     var resolution = 64;
 
                     // Offset is used to re-center the terrain, this way we get the greates detail
                     // nearest to the camera. In the future, should calculate required detail level per tile
                     World.cameraOffset = new THREE.Vector2(0, 0);
+                    World.roughCameraOffset = new THREE.Vector2(0, 0);
 
                     // Create geometry that we'll use for each tile, just a standard plane
                     var tileGeometry = new THREE.PlaneGeometry( 1, 1, resolution, resolution );
@@ -148,7 +191,19 @@ function init() {
                         // serverSideLevel -= 1;
                     }
 
+                    // Create rough tiles
+                    var roughTileScale = 25600;
+
+                    for (var yRough = -(World.size.y/2); yRough <= World.size.y/2; yRough += roughTileScale) {
+                        for (xRough = -(World.size.x/2); xRough <= World.size.x/2; xRough += roughTileScale) {
+                            // console.log(xRough, yRough);
+                            createRoughTile( xRough, yRough, roughTileScale )
+                        }
+                    }
+
+                    World.terrain.visible = false;
                     World.scene.add(World.terrain);
+                    World.scene.add(World.roughTerrain);
 
                     // axes
 
@@ -166,7 +221,7 @@ function init() {
 
                     window.addEventListener( 'resize', onWindowResize, false );
 
-                    Controls.signalRequestEnd();
+                    // Controls.signalRequestEnd();
 
                     animate();
                 }
@@ -194,7 +249,9 @@ function animate() {
 function render() {
     Controls.controls.update( clock.getDelta() );
 
+    
     if (!Controls.movementInProgress && !Controls.viewModeIsActive) {
+        
         // Check if we have moved enough from last LOD update position
         if (
             Math.abs(LOD.lastLoadingCoordinates.x - Controls.controls.target.x) > LOD.levels[LOD.level].dimension ||
@@ -204,9 +261,13 @@ function render() {
             LOD.tooCloseToLastLODUpdate = false;
         }
 
+        // Main terrain movement
         if (!Controls.movingDisabled) {
-            Controls.updateTilesLocation();
+            Controls.updateTilesLocation(World.terrain);
         }
+
+        // Rough terrain movement - always update its location
+        //Controls.updateTilesLocation(World.roughTerrain);
 
         LOD.throttledUpdate();
     }

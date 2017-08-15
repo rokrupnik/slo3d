@@ -185,6 +185,7 @@ var World = (function () {
         targetOnScreen: new THREE.Vector2(),
         rayCaster: new THREE.Raycaster(),
         terrain: new THREE.Group(),
+        roughTerrain: new THREE.Group(),
         qt: null,
 
         offset: new THREE.Vector3(374000, 31000, 0),

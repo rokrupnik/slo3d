@@ -5,6 +5,7 @@ var LOD = (function () {
      * Loads new data if camera is in the right position.
      */
     var update = function () {
+        //console.log(Controls.controls.target.x, Controls.controls.target.y, Controls.camera.position.z);
         if (!LOD.updateInProgress && !Controls.movementInProgress) {
             LOD.updateInProgress = true;
 
@@ -50,12 +51,12 @@ var LOD = (function () {
 
     var updateLevel = function (levelId, levelDim, x, y) {
         // Allow to move the mesh in the appropriate position
-        Controls.updateTilesLocation();
+        Controls.updateTilesLocation(World.terrain);
 
         // Load heightMap and ortoFoto for all tiles, first for tiles in the center
         
         for(var i = 0; i < World.terrain.children.length; i++) {
-            if (i < 40) {
+            if (i < LOD.NUM_OF_CORE_TILES) {
                 Controls.signalRequestStart();
             }
             loadHeightMapAndOrtofoto(
@@ -84,7 +85,7 @@ var LOD = (function () {
         
         Texture.loader.load(
             'http://212.235.189.233:8888/heightmaps?x=' + x + '&y=' + y + '&dim=' + levelDim + '&levelId=' + levelId,
-            handleLoadedHeightMap(levelId, levelDim, x, y, tileShaderUniforms, i),
+            handleLoadedHeightMap(levelId, levelDim, x, y, tileShaderUniforms, i, 5),
             null,
             function (response) {
                 console.error('HeightMap loading failed', levelId, x, y, response);
@@ -95,7 +96,7 @@ var LOD = (function () {
         );
     };
 
-    var handleLoadedHeightMap = function (levelId, levelDim, x, y, tileShaderUniforms, i) {
+    var handleLoadedHeightMap = function (levelId, levelDim, x, y, tileShaderUniforms, i, numberOfOrtoFotoLoadRetries) {
         var ortoFotoResolution = getLevelOrtofotoResolutions(levelId);
         return function (heightMap) {
             heightMap.minFilter = THREE.LinearFilter;
@@ -122,7 +123,7 @@ var LOD = (function () {
                 handleLoadedOrtofoto(levelId, levelDim, x, y, heightMap, tileShaderUniforms, i),
                 null,
                 function () {
-                    handleFailedOrtofoto(LOD.MAX_NUM_OF_RETRIES);
+                    handleFailedOrtofoto(numberOfOrtoFotoLoadRetries || LOD.MAX_NUM_OF_RETRIES);
                 }
             );
         };
@@ -137,13 +138,20 @@ var LOD = (function () {
     var sendTexturesToShaders = function (levelId, levelDim, x, y, heightMap, ortoFotoTexture, tileShaderUniforms, i) {
         // Send textures to shader and signal that tile textures are active now
         tileShaderUniforms.uTileHeightMap.value = heightMap;
-        tileShaderUniforms.uTileOrtoFoto.value = ortoFotoTexture;
-        tileShaderUniforms.uGlobalTexturesActive.value = false;
-        tileShaderUniforms.uTileTexturesActive.value = true;
+        if (ortoFotoTexture) {
+            tileShaderUniforms.uTileOrtoFoto.value = ortoFotoTexture;
+            
+            if (tileShaderUniforms.uGlobalTexturesActive) {
+                tileShaderUniforms.uGlobalTexturesActive.value = false;
+            }
+            if (tileShaderUniforms.uTileTexturesActive) {
+                tileShaderUniforms.uTileTexturesActive.value = true;
+            }
+        }
 
         //LOD.loadingInProgress = false;
 
-        if (i < 40) {
+        if (i < LOD.NUM_OF_CORE_TILES) {
             Controls.signalRequestEnd();
         }
     }
@@ -166,7 +174,7 @@ var LOD = (function () {
 
     var distances = [
         0, // 0
-        128000, // 1
+        256000, // 1
         64000, // 2
         32000, // 3
         32000, // 4
@@ -190,14 +198,15 @@ var LOD = (function () {
         32, // 0
         32, // 1
         32, // 2
-        64, // 3
+        256, // 3
         256, // 4
         256, // 5
         256, // 6
         256, // 7
         512, // 8
         512, // 9
-        1024 // 10
+        1024, // 10
+        512 // 11 (for rough tiles)
     ];
     var getLevelOrtofotoResolutions = function (level) {
         return resolutions[level];
@@ -207,7 +216,7 @@ var LOD = (function () {
         return Math.pow( 2, Math.round( Math.log( aSize ) / Math.log( 2 ) ) );
     };
 
-    function Level (dimension, startDistance) {
+    function Level (dimension, startDistance, isWaitingForUpdate) {
         this.dimension = dimension;
         this.startDistance = startDistance;
         // this.data = {};
@@ -218,7 +227,7 @@ var LOD = (function () {
          */
         // this.dataIds = [];
         // this.lastQtCoordinates = new THREE.Vector3();
-        this.isWaitingForUpdate = false;
+        this.isWaitingForUpdate = isWaitingForUpdate;
     }
 
     return {
@@ -226,6 +235,7 @@ var LOD = (function () {
         MAX_NUM_OF_TILES_PER_LEVEL: 100,
         MIN_DISTANCE_TO_RELOAD: 4000,
         TILE_SCALE: 1.2, //1.0, // To prevent seams
+        NUM_OF_CORE_TILES: 28,
 
         updateInProgress: false,
         loadingInProgress: true,
@@ -249,10 +259,10 @@ var LOD = (function () {
         },
 
         levels: {
-            '2': new Level(getLevelDimension(2), getLevelEndDistance(1)),
-            '4': new Level(getLevelDimension(4), getLevelEndDistance(2)),
-            '6': new Level(getLevelDimension(6), getLevelEndDistance(4)),
-            '8': new Level(getLevelDimension(8), getLevelEndDistance(6)),
+            '2': new Level(getLevelDimension(2), getLevelEndDistance(1), false),
+            '4': new Level(getLevelDimension(4), getLevelEndDistance(2), false),
+            '6': new Level(getLevelDimension(6), getLevelEndDistance(4), false),
+            '8': new Level(getLevelDimension(8), getLevelEndDistance(6), false),
         },
         level: 2,
 
@@ -260,6 +270,8 @@ var LOD = (function () {
 
         getLevelDimension: getLevelDimension,
         getLevelEndDistance: getLevelEndDistance,
+
+        handleLoadedHeightMap: handleLoadedHeightMap,
 
         init: function () {
             // Mark area as checked to prevent further loading

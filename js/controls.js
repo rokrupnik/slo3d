@@ -81,16 +81,22 @@ var Controls = (function () {
         Controls.controls.enableZoom = true;
 
         Controls.controls.target = new THREE.Vector3( Controls.camera.position.x, Controls.camera.position.y + 0.0001, 0 );
+
+        LOD.lastLoadingCoordinates.x = Controls.controls.target.x;
+        LOD.lastLoadingCoordinates.y = Controls.controls.target.y;
     };
 
     var requestCounter = 0;
-    var preloader = document.getElementById('preloader');
+    // var preloader = document.getElementById('preloader');
     var signalRequestStart = function () {
         requestCounter += 1;
 
         if (requestCounter > 0 && preloader.style.display === 'none') {
             preloader.style.display = 'flex'; // Display preloader
         }
+        World.roughTerrain.visible = true;
+        World.terrain.visible = false;
+        Controls.controls.enablePan = false;
     }
     var signalRequestEnd = function () {
         requestCounter -= 1;
@@ -100,22 +106,25 @@ var Controls = (function () {
             if (preloader.style.display !== 'none') {
                 preloader.style.display = 'none'; // Hide preloader
             }
+            World.roughTerrain.visible = false;
+            World.terrain.visible = true;
+            Controls.controls.enablePan = true;
         }
     }
 
-    var updateTilesLocation = function () {
+    var updateTilesLocation = function (terrain) {
         if (
-            World.terrain.position.x !== (Controls.controls.target.x - World.center.x) ||
-            World.terrain.position.y !== (Controls.controls.target.y - World.center.y)
+            terrain.position.x !== (Controls.controls.target.x - World.center.x) ||
+            terrain.position.y !== (Controls.controls.target.y - World.center.y)
         ) {
-            World.terrain.position.x = Controls.controls.target.x - World.center.x;
-            World.terrain.position.y = Controls.controls.target.y - World.center.y;
+            terrain.position.x = Controls.controls.target.x - World.center.x;
+            terrain.position.y = Controls.controls.target.y - World.center.y;
 
             // Update camera offset in shaders
-            World.cameraOffset.x = World.terrain.position.x;
-            World.cameraOffset.y = World.terrain.position.y;
-            for(var i = 0; i < World.terrain.children.length; i++) {
-                World.terrain.children[i].material.uniforms.uCameraOffset.value = World.cameraOffset;
+            World.cameraOffset.x = terrain.position.x;
+            World.cameraOffset.y = terrain.position.y;
+            for(var i = 0; i < terrain.children.length; i++) {
+                terrain.children[i].material.uniforms.uCameraOffset.value = World.cameraOffset;
             }
         }
     }

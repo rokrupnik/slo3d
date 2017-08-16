@@ -65,7 +65,7 @@ var Controls = (function () {
     };
 
     var initializeCamera = function (x, y, z) {
-        Controls.camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, World.size.y + World.size.y/2 );
+        Controls.camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 10, World.size.y + World.size.y/4 );
 
         Controls.camera.position.x = x;
         Controls.camera.position.y = y;

@@ -141,7 +141,7 @@ float getHeight(vec3 p, vec2 uv) {
 
 	height = HEIGHT_SCALE * dot(heightData, vec4(16711680.0, 65280.0, 255.0, 0.0));
 
-	if (st.x > 0.99 || st.y > 0.99) {
+	if (st.x > 0.9 || st.y > 0.9) {
 		height -= 10.0;
 	}
 

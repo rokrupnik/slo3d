@@ -182,13 +182,6 @@ function init() {
                         createTile( scale, -scale, scale, Edge.RIGHT );
                         createTile( scale, 0, scale, Edge.RIGHT );
                         createTile( scale, scale, scale, Edge.TOP | Edge.RIGHT );
-
-                        // resolution /= 2;
-                        // tileGeometry = new THREE.PlaneGeometry( 1, 1, resolution, resolution );
-
-                        // Prepare a map for LOD update.
-                        // LOD.serverSideLevels[scale] = serverSideLevel;
-                        // serverSideLevel -= 1;
                     }
 
                     // Create rough tiles

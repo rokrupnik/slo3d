@@ -5,7 +5,6 @@ var LOD = (function () {
      * Loads new data if camera is in the right position.
      */
     var update = function () {
-        //console.log(Controls.controls.target.x, Controls.controls.target.y, Controls.camera.position.z);
         if (!LOD.updateInProgress && !Controls.movementInProgress) {
             LOD.updateInProgress = true;
 
@@ -53,8 +52,7 @@ var LOD = (function () {
         // Allow to move the mesh in the appropriate position
         Controls.updateTilesLocation(World.terrain);
 
-        // Load heightMap and ortoFoto for all tiles, first for tiles in the center
-        
+        // Load heightMap and ortoFoto for all tiles, first for tiles in the center        
         for(var i = 0; i < World.terrain.children.length; i++) {
             if (i < LOD.NUM_OF_CORE_TILES) {
                 Controls.signalRequestStart();

@@ -22,7 +22,7 @@
 				padding: 5px;
 				left: 50%;
 				transform: translateX(-50%);
-				background: rgba(255, 255, 255, 0.58);
+				background: rgba(255, 255, 255, 0.57);
 			}
 
 			a {
@@ -36,27 +36,29 @@
 				display: none;
 			}
 			.crosshair.vertical {
-				top: 0;
+				top: 40%;
 				left: 50%;
-				height: 100%;
+				height: 20%;
 				width: 1px;
 			}
 			.crosshair.horizontal {
 				top: 50%;
+				left: 45%;
 				height: 1px;
-				width: 100%;
+				width: 10%;
 			}
 
 			#preloader {
 				position: fixed;
-				top: 0;
-				left: 0;
-				width: 100%;
-				height: 100%;
-				background: rgba(255, 255, 255, 0.57);
+				bottom: 0;
+				right: 0;
+				width: 30%;
+				height: 20%;
+				background: rgba(255, 255, 255, 0.8) url(img/loading.gif) no-repeat left center;
+				background-size: 45%;
 				display: flex;
 			}
-			#preloader h1 {
+			#preloader div {
 				margin: auto;
 			}
 
@@ -67,10 +69,14 @@
 		<div id="container"></div>
 		<div id="info">
             SLO3D - LIDAR visualisation demo based on <a href="http://threejs.org" target="_blank">three.js</a> - webgl terrain demo<br />
-            (left click: pan, right click: rotate, mouse wheel: zoom, Ctrl: enter VIEW MODE)<br />
+            (left click: pan, right click: rotate, mouse wheel: zoom, Ctrl: enable CROSSHAIR)<br />
+			<a href="#" onclick="LOD.lastLoadingCoordinates.x = 0;">RELOAD DATA FOR CURRENT VIEW</a>
         </div>
-		<div id="preloader">
-			<h1>LOADING DATA...</h1>
+		<div id="preloader" style="display: none;">
+			<div>
+				<h1>LOADING DATA</h1>
+				<p>(panning is disabled)</p>
+			</div>
 		</div>
 
 		<div class="crosshair vertical">&nbsp;</div>
@@ -83,43 +89,184 @@
 		<script src="js/libs/Detector.js"></script>
 		<script src="js/libs/stats.min.js"></script>
 
-		<script src="js/libs/qtree.js"></script>
-
 		<script src="js/libs/proj4.js"></script>
 
-        <!-- CUSTOM JS -->
-		<script src="js/globals.js"></script>
+		<script src="https://cdn.jsdelivr.net/lodash/4.17.4/lodash.min.js"></script>
+
+		<!-- CUSTOM JS -->
+		<script type="text/javascript">
+			'use strict';
+
+			var container = document.getElementById( 'container' ),
+				stats,
+				clock;
+
+			if ( ! Detector.webgl ) {
+
+				Detector.addGetWebGLMessage();
+				container.innerHTML = "";
+			}
+		</script>
 		<script src="js/controls.js"></script>
 		<script src="js/world.js"></script>
 		<script src="js/texture.js"></script> <!-- Depends on world.js -->
-		<script src="js/data.js"></script>
 		<script src="js/lod.js"></script>
 		<script src="js/main.js"></script>
 
 <!-- ---------------- Custom Shader Code ------------------------ -->
 <script id="vertexShader" type="x-shader/x-vertex">
+uniform vec3 uGlobalOffset;
+uniform vec2 uCameraOffset;
+uniform vec2 uTileOffset;
+uniform float uScale;
+
+uniform sampler2D uTileHeightMap;
+
+// varying vec3 vNormal;
+// varying float vMorphFactor;
+varying vec2 vUV;
+
+float height;
+vec3 newPosition;
+
+#define HEIGHT_SCALE 0.01
+
+float getHeight(vec3 p, vec2 uv) {
+	vec2 st;
+	vec4 heightData = vec4(0.0, 0.0, 0.0, 0.0);
+	float height = 0.0;
+
+	st = uv;// * 1.05;//min((uv * TILE_SCALE), vec2(1.0, 1.0));
+	heightData = texture2D( uTileHeightMap, st );
+
+	height = HEIGHT_SCALE * dot(heightData, vec4(16711680.0, 65280.0, 255.0, 0.0));
+
+	if (st.x > 0.9 || st.y > 0.9) {
+		height -= 10.0;
+	}
+
+	if (height > 2870.0) {
+		height = 0.0;
+	}
+
+	return height;
+}
+
+void main()
+{
+	// Move into correct place
+	newPosition = uScale * position + vec3(uTileOffset, 0.0);
+
+	height = getHeight(newPosition, uv);
+
+	// Prepare uv coordinates for fragment shader
+  	vUV = uv;
+
+	newPosition += uGlobalOffset;
+
+	// move the position along the normal
+    newPosition = newPosition + normal * height;
+
+	gl_Position = projectionMatrix * modelViewMatrix * vec4( newPosition, 1.0 );
+}
+</script>
+<!-- ---------------- Custom Shader Code ------------------------ -->
+<script id="roughVertexShader" type="x-shader/x-vertex">
+uniform vec3 uGlobalOffset;
+uniform vec2 uCameraOffset;
+uniform vec2 uTileOffset;
+uniform float uScale;
+
+uniform sampler2D uGlobalHeightMap;
+uniform bool uGlobalTexturesActive;
+uniform bool uTileTexturesActive;
+
+//varying vec3 vNormal;
+varying vec2 vUV;
+
+float height;
+vec3 newPosition;
+
+#define HEIGHT_SCALE 0.01
+
+float getHeight(vec3 p, vec2 uv) {
+	vec2 st;
+	vec4 heightData = vec4(0.0, 0.0, 0.0, 0.0);
+	float height = 0.0;
+
+	st = ((p.xy + uCameraOffset) / float(WORLD_WIDTH)) + 0.5;
+	heightData = texture2D( uGlobalHeightMap, st );
+
+	height = HEIGHT_SCALE * dot(heightData, vec4(16711680.0, 65280.0, 255.0, 0.0));
+
+	if (height > 2870.0) {
+		height = 0.0;
+	}
+
+	return height;
+}
+
+void main()
+{
+	// Move into correct place
+	newPosition = uScale * position + vec3(uTileOffset, 0.0);
+
+	height = getHeight(newPosition, uv);
+
+	// Prepare uv coordinates for fragment shader
+	if (uGlobalTexturesActive) {
+		vUV = ((newPosition.xy + uCameraOffset) / float(WORLD_WIDTH)) + 0.5;
+	} else if (uTileTexturesActive) {
+		vUV = uv;
+	}
+
+	newPosition += uGlobalOffset;
+
+	// move the position along the normal
+    newPosition = newPosition + normal * height;
+
+	gl_Position = projectionMatrix * modelViewMatrix * vec4( newPosition, 1.0 );
+}
+</script>
+
+<!-- fragment shader a.k.a. pixel shader -->
+<script id="roughFragmentShader" type="x-shader/x-vertex">
+uniform sampler2D uGlobalOrtoFoto;
+uniform sampler2D uTileOrtoFoto;
+uniform bool uGlobalTexturesActive;
+uniform bool uTileTexturesActive;
+
 varying vec2 vUV;
 
 void main()
 {
-	vUV = uv;
+	vec4 color = vec4( 0.749, 0.82, 0.899, 1.0);
 
-	gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+	// If Global textures are active load GlobalOrtoFoto, otherwise load TileOrtoFoto
+	if (uGlobalTexturesActive) {
+		color = texture2D( uGlobalOrtoFoto, vUV );
+	} else if (uTileTexturesActive) {
+		color = texture2D( uTileOrtoFoto, vUV );
+	}
+	
+	gl_FragColor = color;
 }
 </script>
 
 <!-- fragment shader a.k.a. pixel shader -->
 <script id="fragmentShader" type="x-shader/x-vertex">
-uniform sampler2D uOrtoFoto;
+uniform sampler2D uTileOrtoFoto;
+uniform bool uTileTexturesActive;
 
 varying vec2 vUV;
 
-vec4 color;
-
 void main()
 {
-	color = texture2D( uOrtoFoto, vUV );
-  	//color = vec4( 0.0, 0.0, 0.0, 1.0);
+	vec4 color = vec4( 0.749, 0.82, 0.899, 1.0);
+	
+	if (uTileTexturesActive) {
+		color = texture2D( uTileOrtoFoto, vUV );
+	}
 
 	gl_FragColor = color;
 }

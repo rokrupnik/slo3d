@@ -1,342 +1,272 @@
 clock = new THREE.Clock();
+// Tiles that sit next to a tile of a greater scale need to have their edges morphed to avoid
+// edges. Mark which edges need morphing using flags. These flags are then read by the vertex
+// shader which performs the actual morph
+var Edge = {
+    NONE: 0,
+    TOP: 1,
+    LEFT: 2,
+    BOTTOM: 4,
+    RIGHT: 8
+};
 
-function init(heights, dataWidth, dataDepth, hmin, hmax) {
-    Data.img = null;
-
-    worldDataWidth = dataWidth;
-    worldDataDepth = dataDepth;
+function init() {
 
     World.initializeScene();
 
     World.initializeRenderer();
 
     Controls.initializeCamera(
-        xOffset + (0.43 * worldWidth),
-        yOffset + (0.33 * worldDepth) - 1,
-        heights[ (dataWidth / 2) * dataWidth + (dataDepth / 2) ] + 0.66 * worldDepth
+        World.offset.x + (0.43 * World.size.x),//World.center.x,//0,//
+        World.offset.y + (0.33 * World.size.y),//World.center.y,//0,//
+        World.size.y * 0.6
     );
 
     Controls.initializeControls();
 
     //
 
-    var widthScale = worldWidth / dataWidth;
-    var depthScale = worldDepth / dataDepth;
-    var blockWidth = blockDepth = 8000;
-    var dataBlockWidth = (blockWidth / widthScale);
-    var dataBlockDepth = (blockDepth / depthScale);
+    // Controls.signalRequestStart();
+    Texture.loader.load(
+        'data/2/374_31.png',
+        function (initialHeightMap) {
+            Texture.loader.load(
+                Texture.generateUrl([World.offset.x,World.offset.y], [(World.offset.x + World.size.x),(World.offset.y+World.size.y)], [2048, 2048]),
+                function (ortoFotoTexture) {
+                    var createTile = function ( x, y, scale, edgeMorph ) {
+                        var terrainMaterial = createTerrainMaterial(
+                            initialHeightMap,
+                            World.center,
+                            World.cameraOffset,
+                            new THREE.Vector2( x, y ),
+                            scale,
+                            resolution,
+                            edgeMorph
+                        );
+                        var plane = new THREE.Mesh( tileGeometry, terrainMaterial );
 
-    var blockMesh = null, blockGeometry = null, blockMaterial = null, blockLod = null;
+                        // Disable frustum culling to prevent the mesh from dissappearing at certain angles
+                        // See: https://stackoverflow.com/questions/21184061/mesh-suddenly-disappears-in-three-js-clipping
+                        plane.frustumCulled = false;
 
-    var pA = new THREE.Vector3();
-    var pB = new THREE.Vector3();
-    var pC = new THREE.Vector3();
-    var pD = new THREE.Vector3();
-    var cb = new THREE.Vector3();
-    var ab = new THREE.Vector3();
-    var db = new THREE.Vector3();
+                        World.terrain.add( plane );
+                    };
+                    var createRoughTile = function ( x, y, scale ) {
 
-    var drawBlock = function (wBlock, dBlock) {
-        var blockHasData = false, blockHasEmptyPixels = false, blockHasCorruptedPixels = false;
-        var x0 = xOffset + wBlock * widthScale;
-        var y0 = yOffset + (worldDepth - (dBlock * depthScale)) - blockDepth;
-        var x1 = x0 + blockWidth;
-        var y1 = y0 + blockDepth;
+                        var roughTerrainMaterial = createRoughTerrainMaterial(
+                            initialHeightMap,
+                            World.center,
+                            World.roughCameraOffset,
+                            new THREE.Vector2( x, y ),
+                            scale,
+                            resolution
+                        );
 
-        var dStart = 0, wStart = 0;
-        var dStop = dataBlockDepth, wStop = dataBlockWidth;
-        var dSquares = dataBlockDepth, wSquares = dataBlockWidth;
+                        var roughPlane = new THREE.Mesh( tileGeometry, roughTerrainMaterial );
+                        roughPlane.frustumCulled = false;
 
-        // Add some more squares on the edges of interior blocks for stiching
-        if (dBlock > 0) {
-            dStart = -1;
-            dSquares += 1;
-        }
-        if (wBlock > 0) {
-            wStart = -1;
-            wSquares += 1;
-        }
+                        World.roughTerrain.add( roughPlane );
 
-        if ((dBlock + dataBlockDepth) < dataDepth) {
-            dStop += 1;
-            dSquares += 1;
-        }
-        if ((wBlock + dataBlockWidth) < dataWidth) {
-            wStop += 1;
-            wSquares += 1;
-        }
+                        LOD.handleLoadedHeightMap(11, scale, World.center.x + x, World.center.y + y, roughTerrainMaterial.uniforms, 100, 2)(initialHeightMap);                        
+                    };
 
-        var triangles = (dSquares) * (wSquares) * 2;
-
-        var indices = new Uint32Array( triangles * 3 );
-        for ( var i = 0; i < indices.length; i ++ ) {
-            indices[ i ] = i;
-        }
-        var positions = new Float32Array( triangles * 3 * 3 );
-        var normals = new Int16Array( triangles * 3 * 3 );
-        var uvs = new Float32Array( triangles * 3 * 2 );
-
-        for (var d = dStart, ipnc = 0, iuv = 0; d < dStop; d++) {
-            for (var w = wStart; w < wStop; w++) {
-                var ih = (d +  dBlock) * dataDepth + (w + wBlock);
-
-                var ax = w                              * widthScale - (blockWidth / 2);
-                var ay = (dataBlockDepth - d)           * depthScale - (blockDepth / 2);
-                var az = (heights[ ih ]);
-                var bx = w                              * widthScale - (blockWidth / 2);
-                var by = (dataBlockDepth - (d + 1))     * depthScale - (blockDepth / 2);
-                var bz = (heights[ ih + dataWidth ]);
-                var cx = (w + 1)                        * widthScale - (blockWidth / 2);
-                var cy = (dataBlockDepth - d)           * depthScale - (blockDepth / 2);
-                var cz = (heights[ ih + 1 ]);
-                var dx = (w + 1)                        * widthScale - (blockWidth / 2);
-                var dy = (dataBlockDepth - (d + 1))     * depthScale - (blockDepth / 2);
-                var dz = (heights[ ih + dataWidth + 1 ]);
-
-                if (az == 0 && bz == 0 && cz == 0 && dz == 0) {
-                    // Ignore areas without data
-                    blockHasEmptyPixels = true;
-                    continue;
-                } else if (az > 2865 || bz > 2865 || cz > 2865 || dz > 2865) {
-                    // Ignore areas with unrealistic heights
-                    blockHasCorruptedPixels = true;
-                    continue;
-                } else {
-                    blockHasData = true;
-                }
-
-                // First triangle - mind the triangles orientation
-                positions[ ipnc ]     = ax;
-                positions[ ipnc + 1 ] = ay;
-                positions[ ipnc + 2 ] = az;
-                positions[ ipnc + 3 ] = bx;
-                positions[ ipnc + 4 ] = by;
-                positions[ ipnc + 5 ] = bz;
-                positions[ ipnc + 6 ] = cx;
-                positions[ ipnc + 7 ] = cy;
-                positions[ ipnc + 8 ] = cz;
-                // Second triangle
-                positions[ ipnc + 9 ]  = bx;
-                positions[ ipnc + 10 ] = by;
-                positions[ ipnc + 11 ] = bz;
-                positions[ ipnc + 12 ] = dx;
-                positions[ ipnc + 13 ] = dy;
-                positions[ ipnc + 14 ] = dz;
-                positions[ ipnc + 15 ] = cx;
-                positions[ ipnc + 16 ] = cy;
-                positions[ ipnc + 17 ] = cz;
-
-                // flat face normals
-                pA.set( ax, ay, az );
-                pB.set( bx, by, bz );
-                pC.set( cx, cy, cz );
-                pD.set( dx, dy, dz );
-                // First triangle
-                cb.subVectors( pC, pB );
-                ab.subVectors( pA, pB );
-                ab.cross( cb );
-                ab.normalize();
-                var nx0 = ab.x;
-                var ny0 = ab.y;
-                var nz0 = ab.z;
-                normals[ ipnc ]     = nx0 * 32767;
-                normals[ ipnc + 1 ] = ny0 * 32767;
-                normals[ ipnc + 2 ] = nz0 * 32767;
-                normals[ ipnc + 3 ] = nx0 * 32767;
-                normals[ ipnc + 4 ] = ny0 * 32767;
-                normals[ ipnc + 5 ] = nz0 * 32767;
-                normals[ ipnc + 6 ] = nx0 * 32767;
-                normals[ ipnc + 7 ] = ny0 * 32767;
-                normals[ ipnc + 8 ] = nz0 * 32767;
-                // Second triangle
-                db.subVectors( pD, pB );
-                cb.subVectors( pC, pB );
-                cb.cross( db );
-                cb.normalize();
-                var nx1 = cb.x;
-                var ny1 = cb.y;
-                var nz1 = cb.z;
-                normals[ ipnc + 9 ]  = nx1 * 32767;
-                normals[ ipnc + 10 ] = ny1 * 32767;
-                normals[ ipnc + 11 ] = nz1 * 32767;
-                normals[ ipnc + 12 ] = nx1 * 32767;
-                normals[ ipnc + 13 ] = ny1 * 32767;
-                normals[ ipnc + 14 ] = nz1 * 32767;
-                normals[ ipnc + 15 ] = nx1 * 32767;
-                normals[ ipnc + 16 ] = ny1 * 32767;
-                normals[ ipnc + 17 ] = nz1 * 32767;
-
-                // uvs
-                // First triangle
-                uvs[ iuv ]     = w  / dataBlockWidth;
-                uvs[ iuv + 1 ] = d / dataBlockDepth;
-                uvs[ iuv + 2 ] = w  / dataBlockWidth;
-                uvs[ iuv + 3 ] = (d + 1) / dataBlockDepth;
-                uvs[ iuv + 4 ] = (w + 1)  / dataBlockWidth;
-                uvs[ iuv + 5 ] = d / dataBlockDepth;
-                // Second triangle
-                uvs[ iuv + 6 ]  = (w + 1)  / dataBlockWidth;
-                uvs[ iuv + 7 ]  = d / dataBlockDepth;
-                uvs[ iuv + 8 ]  = w  / dataBlockWidth;
-                uvs[ iuv + 9 ]  = (d + 1) / dataBlockDepth;
-                uvs[ iuv + 10 ] = (w + 1)  / dataBlockWidth;
-                uvs[ iuv + 11 ] = (d + 1) / dataBlockDepth;
-
-                ipnc += 18;
-                iuv += 12;
-            }
-        }
-
-        if (blockHasData) {
-            Controls.signalRequestStart();
-            var handleLoadedTexture = function (x, y, positions, normals, uvs) {
-                return function (texture) {
-                    // Create mesh and lod and add them to the scene
-                    blockGeometry = new THREE.BufferGeometry();
-                    blockGeometry.setIndex( new THREE.BufferAttribute( indices, 1 ) );
-                    blockGeometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
-                    blockGeometry.addAttribute( 'normal', new THREE.BufferAttribute( normals, 3, true ) );
-                    blockGeometry.addAttribute( 'uv', new THREE.BufferAttribute( uvs, 2 ) );
-                    //blockGeometry = new THREE.PlaneGeometry( blockWidth, blockDepth, dataBlockWidth, dataBlockDepth );
-
-                    texture.flipY = false;
-                    blockMaterial = new THREE.ShaderMaterial({
+                    var createTerrainMaterial = function( heightMap, globalOffset, cameraOffset, offset, scale, resolution, edgeMorph ) {
+                        return new THREE.ShaderMaterial({
                             uniforms: {
-                                uOrtoFoto: { value: texture }
+                                uEdgeMorph: { value: edgeMorph },
+                                uGlobalOffset: { value: globalOffset },
+                                uCameraOffset: { value: cameraOffset },
+                                uTileOffset: { value: offset },
+                                uScale: { value: scale * LOD.TILE_SCALE },
+                                uTileHeightMap: { value: heightMap },
+                                uTileOrtoFoto: { value: ortoFotoTexture },
+                                // Add flags for switching between global and tile textures
+                                uGlobalTexturesActive: { value: true },
+                                uTileTexturesActive: { value: false }
+                            },
+                            defines: {
+                                TILE_RESOLUTION: resolution,
+                                TILE_SCALE: LOD.TILE_SCALE,
+                                WORLD_WIDTH: World.size.x,
                             },
                             vertexShader: document.getElementById( 'vertexShader'   ).textContent,
                             fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
                             //wireframe: true
-                    });
+                        });
+                    };
 
-                    blockLod = new THREE.LOD();
+                    var createRoughTerrainMaterial = function( heightMap, globalOffset, cameraOffset, offset, scale, resolution ) {
+                        return new THREE.ShaderMaterial({
+                            uniforms: {
+                                uGlobalOffset: { value: globalOffset },
+                                uCameraOffset: { value: cameraOffset },
+                                uTileOffset: { value: offset },
+                                uScale: { value: scale },
+                                // Add heightMap and ortofoto for global and tile textures
+                                uGlobalHeightMap: { value: heightMap },
+                                uGlobalOrtoFoto: { value: ortoFotoTexture },
+                                uTileHeightMap: { value: heightMap },
+                                uTileOrtoFoto: { value: ortoFotoTexture },
+                                // Add flags for switching between global and tile textures
+                                uGlobalTexturesActive: { value: true },
+                                uTileTexturesActive: { value: false }
+                            },
+                            defines: {
+                                TILE_RESOLUTION: resolution,
+                                TILE_SCALE: LOD.TILE_SCALE,
+                                WORLD_WIDTH: World.size.x,
+                            },
+                            vertexShader: document.getElementById( 'roughVertexShader'   ).textContent,
+                            fragmentShader: document.getElementById( 'roughFragmentShader' ).textContent,
+                            //wireframe: true
+                        });
+                    };
 
-                    blockMesh = new THREE.Mesh( blockGeometry, blockMaterial );
-                    // blockMesh.scale.set( 1.5, 1.5, 1.5 );
-                    blockMesh.updateMatrix();
-                    blockMesh.matrixAutoUpdate = false;
-                    blockLod.addLevel( blockMesh, 64000 );
+                    var levels = 8;
+                    var resolution = 64;
 
-                    blockLod.position.x = x + (blockWidth / 2);
-                    blockLod.position.y = y + (blockDepth / 2);
-                    blockLod.position.z = 0;
-                    blockLod.updateMatrix();
-                    blockLod.matrixAutoUpdate = false;
+                    // Offset is used to re-center the terrain, this way we get the greates detail
+                    // nearest to the camera. In the future, should calculate required detail level per tile
+                    World.cameraOffset = new THREE.Vector2(0, 0);
+                    World.roughCameraOffset = new THREE.Vector2(0, 0);
 
-                    World.scene.add( blockLod );
-                    lods[x + '_' + y] = blockLod;
+                    // Create geometry that we'll use for each tile, just a standard plane
+                    var tileGeometry = new THREE.PlaneGeometry( 1, 1, resolution, resolution );
+                    // Place origin at bottom left corner, rather than center
+                    var m = new THREE.Matrix4();
+                    m.makeTranslation( 0.5, 0.5, 0 );
+                    tileGeometry.applyMatrix( m );
 
-                    Controls.signalRequestEnd();
-                };
-            };
-            Texture.loader.load(
-                Texture.generateUrl(World.d96tm2d48gk([x0,y0]), World.d96tm2d48gk([x1,y1]), [128, 128], 'jpg'),
-                handleLoadedTexture(x0, y0, positions, normals, uvs),
-                undefined,
-                function () {
-                    // Retry                    
-                    Texture.loader.load(
-                        Texture.generateUrl(World.d96tm2d48gk([x0,y0]), World.d96tm2d48gk([x1,y1]), [128, 128], 'jpg'),
-                        handleLoadedTexture(x0, y0, positions, normals, uvs),
-                        undefined,
-                        function () {
-                            // Signal request end even if request fails
-                            Controls.signalRequestEnd();
+                    // Create collection of tiles to fill required space
+                    var initialScale = World.size.x / Math.pow( 2, levels );
+
+                    // Create center layer first
+                    //    +---+---+
+                    //    | O | O |
+                    //    +---+---+
+                    //    | O | O |
+                    //    +---+---+
+                    createTile(-initialScale, -initialScale, initialScale, Edge.NONE);
+                    createTile(-initialScale, 0, initialScale, Edge.NONE);
+                    createTile(0, 0, initialScale, Edge.NONE);
+                    createTile(0, -initialScale, initialScale, Edge.NONE);
+
+                    // Create "quadtree" of tiles, with smallest in center
+                    // Each added layer consists of the following tiles (marked 'A'), with the tiles
+                    // in the middle being created in previous layers
+                    // +---+---+---+---+
+                    // | A | A | A | A |
+                    // +---+---+---+---+
+                    // | A |   |   | A |
+                    // +---+---+---+---+
+                    // | A |   |   | A |
+                    // +---+---+---+---+
+                    // | A | A | A | A |
+                    // +---+---+---+---+
+                    // var serverSideLevel = 10;
+                    for (var scale = initialScale; scale < World.size.x; scale *= 2) {
+                        createTile( -2 * scale, -2 * scale, scale, Edge.BOTTOM | Edge.LEFT );
+                        createTile( -2 * scale, -scale, scale, Edge.LEFT );
+                        createTile( -2 * scale, 0, scale, Edge.LEFT );
+                        createTile( -2 * scale, scale, scale, Edge.TOP | Edge.LEFT );
+
+                        createTile( -scale, -2 * scale, scale, Edge.BOTTOM );
+                        // 2 tiles 'missing' here are in previous layer
+                        createTile( -scale, scale, scale, Edge.TOP );
+
+                        createTile( 0, -2 * scale, scale, Edge.BOTTOM );
+                        // 2 tiles 'missing' here are in previous layer
+                        createTile( 0, scale, scale, Edge.TOP );
+
+                        createTile( scale, -2 * scale, scale, Edge.BOTTOM | Edge.RIGHT );
+                        createTile( scale, -scale, scale, Edge.RIGHT );
+                        createTile( scale, 0, scale, Edge.RIGHT );
+                        createTile( scale, scale, scale, Edge.TOP | Edge.RIGHT );
+                    }
+
+                    // Create rough tiles
+                    var roughTileScale = 25600;
+
+                    for (var yRough = -(World.size.y/2); yRough <= World.size.y/2; yRough += roughTileScale) {
+                        for (xRough = -(World.size.x/2); xRough <= World.size.x/2; xRough += roughTileScale) {
+                            // console.log(xRough, yRough);
+                            createRoughTile( xRough, yRough, roughTileScale )
                         }
-                    );
+                    }
+
+                    World.terrain.visible = false;
+                    World.scene.add(World.terrain);
+                    World.scene.add(World.roughTerrain);
+
+                    // axes
+
+                    // var axes = new THREE.AxisHelper( World.size.y );
+                    // World.scene.add( axes );
+
+                    container.innerHTML = "";
+
+                    container.appendChild( World.renderer.domElement );
+
+                    stats = new Stats();
+                    container.appendChild( stats.dom );
+
+                    //
+
+                    window.addEventListener( 'resize', onWindowResize, false );
+
+                    // Controls.signalRequestEnd();
+
+                    animate();
                 }
             );
         }
-
-        return blockHasData;
-    }
-
-    var start = performance.now();
-
-    for (var dBlock = 0; dBlock < dataDepth; dBlock += dataBlockDepth) {
-        for (var wBlock = 0; wBlock < dataWidth; wBlock += dataBlockWidth) {
-            drawBlock(dBlock, wBlock);
-        }
-    }
-
-    console.log('basic mesh', performance.now() - start);
-
-    //geometry.computeBoundingSphere();
-
-    // axes
-
-    // var axes = new THREE.AxisHelper( worldDepth );
-    // World.scene.add( axes );
-
-    // mesh
-
-    // baseMesh = new THREE.Mesh( geometry, material );
-    // World.scene.add( baseMesh );
-
-    container.innerHTML = "";
-
-    container.appendChild( World.renderer.domElement );
-
-    stats = new Stats();
-    container.appendChild( stats.dom );
-
-    //
-
-    window.addEventListener( 'resize', onWindowResize, false );
-
-    animate();
+    );
 }
 
 function onWindowResize() {
-
     Controls.camera.aspect = window.innerWidth / window.innerHeight;
     Controls.camera.updateProjectionMatrix();
 
     World.renderer.setSize( window.innerWidth, window.innerHeight );
-
 }
 
 //
 
 function animate() {
-
     requestAnimationFrame( animate );
 
     render();
     stats.update();
-
-    LOD.update();
-
 }
 
-// var raycastCounter = 0;
 function render() {
-    // World.targetOnScreen.x = 0;
-    // World.targetOnScreen.y = 0;
-
-    // World.rayCaster.setFromCamera(World.targetOnScreen, Controls.camera);
-
     Controls.controls.update( clock.getDelta() );
 
-    World.scene.updateMatrixWorld();
-    World.scene.traverse( function ( object ) {
-
-        if ( object instanceof THREE.LOD ) {
-
-            object.update( Controls.camera );
-
-            // if (raycastCounter == 0) {
-            //     var intersects  = World.rayCaster.intersectObject(object);
-            //     if (intersects.length > 0)
-            //         console.log(object.id, intersects[0]);
-            // }
-
+    
+    if (!Controls.movementInProgress && !Controls.viewModeIsActive) {
+        
+        // Check if we have moved enough from last LOD update position
+        if (
+            Math.abs(LOD.lastLoadingCoordinates.x - Controls.controls.target.x) > LOD.levels[LOD.level].dimension ||
+            Math.abs(LOD.lastLoadingCoordinates.y - Controls.controls.target.y) > LOD.levels[LOD.level].dimension
+        ) {
+            Controls.movingDisabled = false;
+            LOD.tooCloseToLastLODUpdate = false;
         }
 
-    } );
+        // Main terrain movement
+        if (!Controls.movingDisabled) {
+            Controls.updateTilesLocation(World.terrain);
+        }
 
-    // raycastCounter = (raycastCounter + 1) % 20;
+        // Rough terrain movement - always update its location
+        //Controls.updateTilesLocation(World.roughTerrain);
+
+        LOD.throttledUpdate();
+    }
 
     World.renderer.render( World.scene, Controls.camera );
-
+        
 }
+
+init();

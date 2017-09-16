@@ -112,7 +112,7 @@ var LOD = (function () {
                 } else {
                     console.error('Ortofoto loading failed.', levelId, x, y);
                     // At least use the loaded heightmap
-                    sendTexturesToShaders(levelId, levelDim, x, y, heightMap, null, tileShaderUniforms);
+                    sendTexturesToShaders(levelId, levelDim, x, y, heightMap, null, tileShaderUniforms, i);
                 }
             };
             // Start loading ortoFoto
@@ -201,7 +201,7 @@ var LOD = (function () {
         256, // 5
         256, // 6
         256, // 7
-        512, // 8
+        256, // 8
         512, // 9
         1024, // 10
         512 // 11 (for rough tiles)
@@ -229,7 +229,7 @@ var LOD = (function () {
     }
 
     return {
-        MAX_NUM_OF_RETRIES: 5,
+        MAX_NUM_OF_RETRIES: 8,
         MAX_NUM_OF_TILES_PER_LEVEL: 100,
         MIN_DISTANCE_TO_RELOAD: 4000,
         TILE_SCALE: 1.2, //1.0, // To prevent seams

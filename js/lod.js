@@ -198,11 +198,11 @@ var LOD = (function () {
         32, // 2
         256, // 3
         256, // 4
-        256, // 5
-        256, // 6
-        256, // 7
-        256, // 8
-        512, // 9
+        512, // 5
+        512, // 6
+        512, // 7
+        1024, // 8
+        1024, // 9
         1024, // 10
         512 // 11 (for rough tiles)
     ];
@@ -233,7 +233,7 @@ var LOD = (function () {
         MAX_NUM_OF_TILES_PER_LEVEL: 100,
         MIN_DISTANCE_TO_RELOAD: 4000,
         TILE_SCALE: 1.2, //1.0, // To prevent seams
-        NUM_OF_CORE_TILES: 28,
+        NUM_OF_CORE_TILES: 17,
 
         updateInProgress: false,
         loadingInProgress: true,
@@ -248,11 +248,11 @@ var LOD = (function () {
             '512': 9,
             '128000': 3,
             '64000': 4,
-            '32000': 5,
-            '16000': 6,
-            '8000': 7,
-            '4000': 8,
-            '2000': 9,
+            '243000': 5,
+            '81000': 6,
+            '27000': 7,
+            '9000': 8,
+            '3000': 9,
             '1000': 10
         },
 

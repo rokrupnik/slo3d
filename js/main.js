@@ -62,7 +62,7 @@ function init() {
                             resolution
                         );
 
-                        var roughPlane = new THREE.Mesh( tileGeometry, roughTerrainMaterial );
+                        var roughPlane = new THREE.Mesh( roughTileGeometry, roughTerrainMaterial );
                         roughPlane.frustumCulled = false;
 
                         World.roughTerrain.add( roughPlane );
@@ -122,8 +122,8 @@ function init() {
                         });
                     };
 
-                    var levels = 8;
-                    var resolution = 64;
+                    var resolution = 128;
+                    var roughResolution = 64;
 
                     // Offset is used to re-center the terrain, this way we get the greates detail
                     // nearest to the camera. In the future, should calculate required detail level per tile
@@ -132,56 +132,57 @@ function init() {
 
                     // Create geometry that we'll use for each tile, just a standard plane
                     var tileGeometry = new THREE.PlaneGeometry( 1, 1, resolution, resolution );
+                    var roughTileGeometry = new THREE.PlaneGeometry( 1, 1, roughResolution, roughResolution );
                     // Place origin at bottom left corner, rather than center
                     var m = new THREE.Matrix4();
                     m.makeTranslation( 0.5, 0.5, 0 );
                     tileGeometry.applyMatrix( m );
+                    roughTileGeometry.applyMatrix( m );
 
                     // Create collection of tiles to fill required space
-                    var initialScale = World.size.x / Math.pow( 2, levels );
+                    var initialScale = 1000;
 
                     // Create center layer first
-                    //    +---+---+
-                    //    | O | O |
-                    //    +---+---+
-                    //    | O | O |
-                    //    +---+---+
-                    createTile(-initialScale, -initialScale, initialScale, Edge.NONE);
-                    createTile(-initialScale, 0, initialScale, Edge.NONE);
-                    createTile(0, 0, initialScale, Edge.NONE);
-                    createTile(0, -initialScale, initialScale, Edge.NONE);
+                    //    +---+
+                    //    | C |
+                    //    +---+
+                    createTile(-initialScale/2, -initialScale/2, initialScale, Edge.NONE);
 
                     // Create "quadtree" of tiles, with smallest in center
-                    // Each added layer consists of the following tiles (marked 'A'), with the tiles
+                    // Each added layer consists of the following tiles (marked with numbers), with the tiles
                     // in the middle being created in previous layers
-                    // +---+---+---+---+
-                    // | A | A | A | A |
-                    // +---+---+---+---+
-                    // | A |   |   | A |
-                    // +---+---+---+---+
-                    // | A |   |   | A |
-                    // +---+---+---+---+
-                    // | A | A | A | A |
-                    // +---+---+---+---+
+                    // and the tiles on the edge being created in next layers
+                    // +---+---+---+---+---+---+---+---+---+
+                    // |           |           |           |
+                    // +           +           +           +
+                    // |    ...    |    ...    |    ...    |
+                    // +           +           +           +
+                    // |           |           |           |
+                    // +---+---+---+---+---+---+---+---+---+
+                    // |           | 3 | 5 | 8 |           |
+                    // +           +---+---+---+           +
+                    // |    ...    | 2 |   | 7 |    ...    |
+                    // +           +---+---+---+           +
+                    // |           | 1 | 4 | 6 |           |
+                    // +---+---+---+---+---+---+---+---+---+
+                    // |           |           |           |
+                    // +           +           +           +
+                    // |    ...    |    ...    |    ...    |
+                    // +           +           +           +
+                    // |           |           |           |
+                    // +---+---+---+---+---+---+---+---+---+
                     // var serverSideLevel = 10;
-                    for (var scale = initialScale; scale < World.size.x; scale *= 2) {
-                        createTile( -2 * scale, -2 * scale, scale, Edge.BOTTOM | Edge.LEFT );
-                        createTile( -2 * scale, -scale, scale, Edge.LEFT );
-                        createTile( -2 * scale, 0, scale, Edge.LEFT );
-                        createTile( -2 * scale, scale, scale, Edge.TOP | Edge.LEFT );
-
-                        createTile( -scale, -2 * scale, scale, Edge.BOTTOM );
-                        // 2 tiles 'missing' here are in previous layer
-                        createTile( -scale, scale, scale, Edge.TOP );
-
-                        createTile( 0, -2 * scale, scale, Edge.BOTTOM );
-                        // 2 tiles 'missing' here are in previous layer
-                        createTile( 0, scale, scale, Edge.TOP );
-
-                        createTile( scale, -2 * scale, scale, Edge.BOTTOM | Edge.RIGHT );
-                        createTile( scale, -scale, scale, Edge.RIGHT );
-                        createTile( scale, 0, scale, Edge.RIGHT );
-                        createTile( scale, scale, scale, Edge.TOP | Edge.RIGHT );
+                    for (var scale = initialScale; scale < World.size.x; scale *= 3) {
+                        createTile(-scale - scale/2, -scale -  scale/2, scale, Edge.NONE);
+                        createTile(-scale - scale/2, -scale/2, scale, Edge.NONE);
+                        createTile(-scale - scale/2, scale/2, scale, Edge.NONE); 
+    
+                        createTile(-scale/2, -scale -  scale/2, scale, Edge.NONE);
+                        createTile(-scale/2, scale/2, scale, Edge.NONE); 
+    
+                        createTile(scale/2, -scale -  scale/2, scale, Edge.NONE);
+                        createTile(scale/2, -scale/2, scale, Edge.NONE);
+                        createTile(scale/2, scale/2, scale, Edge.NONE);
                     }
 
                     // Create rough tiles

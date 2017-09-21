@@ -148,7 +148,7 @@ function init() {
                     //    +---+
                     createTile(-initialScale/2, -initialScale/2, initialScale, Edge.NONE);
 
-                    // Create "quadtree" of tiles, with smallest in center
+                    // Create a tree of tiles, with smallest in center
                     // Each added layer consists of the following tiles (marked with numbers), with the tiles
                     // in the middle being created in previous layers
                     // and the tiles on the edge being created in next layers
